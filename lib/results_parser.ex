@@ -1,6 +1,7 @@
 defmodule ResultsParser do
 
   @num_server_info_lines 19
+  @tick_interval_key "tick_interval:"
 
   def parse_deaths_csv(file_name) do
     if File.exists?("results/#{file_name}.csv") do
@@ -18,7 +19,7 @@ defmodule ResultsParser do
       tick_rate = get_tick_rate(server_info)
       
       [kills, assists, players] = csv_stream
-                                  |> Enum.map(&parse_csv_line(&1))
+                                  |> Enum.map(&parse_csv_line(&1, tick_rate))
                                   |> Enum.reduce([[], [], []], reduce_tuple_to_list)
 
       [kills, assists, players]
@@ -35,7 +36,7 @@ defmodule ResultsParser do
     end
   end
 
-  defp parse_csv_line(line) do
+  defp parse_csv_line(line, tick_rate) do
     player_info = get_player_info(line)
     assist_info = get_assist_info(line)
     kill_info = get_kill_info(line)
@@ -44,9 +45,9 @@ defmodule ResultsParser do
 
   defp get_tick_rate(server_info) do
     tick_rate_chunk = server_info |> Enum.filter(fn(e) ->
-        e |> String.split(" ") |> Enum.at(0) == "tick_interval:"
+        e |> String.split(" ") |> Enum.at(0) == @tick_interval_key
       end)
-    tick_rate = tick_rate_chunk |> Enum.at(0) |> String.split(" ") |> Enum.at(1)
+    tick_rate = tick_rate_chunk |> Enum.at(0) |> String.split(" ") |> Enum.at(1) |> String.trim_trailing("\n") |> String.to_float()
     tick_rate
   end
 
