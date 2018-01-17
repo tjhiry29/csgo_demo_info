@@ -10,8 +10,12 @@ defmodule CSVParser do
       {server_info, csv_stream} = Enum.split(stream, @num_server_info_lines)
       tick_rate = get_tick_rate(server_info)
       
-      {_, result} = csv_stream |> Enum.map(&String.trim_trailing(&1, "\n")) |> Enum.map_reduce([[], []], &parse_csv_line(&1, &2))
+      {_, result} = csv_stream 
+                    |> Enum.map(&String.trim_trailing(&1, "\n")) 
+                    |> Enum.map_reduce([[], []], &parse_csv_line(&1, &2))
+
       [kills, players] = result
+
       players = players 
               |> List.flatten() 
               |> Enum.uniq() 
@@ -20,9 +24,11 @@ defmodule CSVParser do
               |> Enum.map(&find_deaths(&1, kills))
               |> Enum.map(&find_assists(&1, kills))
               |> Enum.sort(fn(player1, player2) -> player1.id < player2.id end)
+
       IO.inspect players
     else
-      IO.puts "No such file results/#{file_name}.csv, please check the directory or ensure the demo dump goes through as expected"
+      IO.puts "No such file results/#{file_name}.csv, please check the directory 
+                or ensure the demo dump goes through as expected"
     end
   end
 
@@ -30,7 +36,8 @@ defmodule CSVParser do
     if File.exists?("results/#{file_name}.dump") do
       # parse dump file
     else
-      IO.puts "No such file results/#{file_name}.dump, please check the directory or ensure the demo dump goes through as expected"
+      IO.puts "No such file results/#{file_name}.dump, please check the directory 
+                or ensure the demo dump goes through as expected"
     end
   end
 
@@ -92,7 +99,16 @@ defmodule CSVParser do
     round = String.to_integer(round)
     tick = String.to_integer(tick)
     headshot = String.to_existing_atom(headshot)
-    kill = %Kill{attacker_name: attacker.name, victim_name: victim.name, weapon: weapon, round: round, tick: tick, headshot: headshot}
+    
+    kill = %Kill {
+      attacker_name: attacker.name, 
+      victim_name: victim.name, 
+      weapon: weapon, 
+      round: round, 
+      tick: tick, 
+      headshot: headshot
+    }
+
     assist = if (assister != nil) do
         get_assist_info(kill, assister)
     end
@@ -106,7 +122,12 @@ defmodule CSVParser do
   end
 
   defp get_assist_info(kill, assister) do
-    %Assist{victim_name: kill.victim_name, assister_name: assister.name, round: kill.round, tick: kill.tick}
+    %Assist {
+      victim_name: kill.victim_name, 
+      assister_name: assister.name, 
+      round: kill.round,
+      tick: kill.tick
+    }
   end
 
   defp find_kills(player, kills) do
