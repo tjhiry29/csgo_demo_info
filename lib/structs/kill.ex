@@ -1,3 +1,3 @@
 defmodule Kill do
-	defstruct [:killer_name, :victim_name, :weapon, :round_num, :tick, head_shot: false, trade: false]
+	defstruct [:attacker_name, :victim_name, :weapon, :round, :tick, :headshot, trade: false, assist: nil]
 end

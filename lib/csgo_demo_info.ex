@@ -8,8 +8,8 @@ defmodule DemoInfoGo do
   # parse resulting dump file
   def parse_results(file_name, types) do
     match_type = fn
-      "-deathscsv" -> ResultsParser.parse_deaths_csv(file_name)
-      "-gameevents" -> ResultsParser.parse_game_events(file_name)
+      "-deathscsv" -> CSVParser.parse_deaths_csv(file_name)
+      # "-gameevents" -> ResultsParser.parse_game_events(file_name)
       _ -> IO.puts "Error: invalid type"
     end
 

@@ -1,3 +1,3 @@
 defmodule Player do
-  defstruct name: ""
+  defstruct [:name, :id, kills: [], assists: [], deaths: []]
 end
