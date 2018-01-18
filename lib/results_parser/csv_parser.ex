@@ -69,7 +69,7 @@ defmodule CSVParser do
     attacker_fields = Enum.slice(fields, 9, 9)
 
     assister_fields = if (Enum.count(fields) == 31) do
-      Enum.slice(fields, 20, 9)
+      Enum.slice(fields, 18, 9)
     end
 
     victim = get_player_info_from_fields(victim_fields)
@@ -91,9 +91,7 @@ defmodule CSVParser do
   defp get_kill_info(line) do
     fields = String.split(line, ", ")
     [victim, attacker, assister] = get_player_info(line)
-    [round, tick] = Enum.take(fields, -2)
-    weapon = Enum.at(fields, 18)
-    headshot = Enum.at(fields, 19)
+    [weapon, headshot, round, tick] = Enum.take(fields, -4)
     round = String.to_integer(round)
     tick = String.to_integer(tick)
     headshot = String.to_existing_atom(headshot)
