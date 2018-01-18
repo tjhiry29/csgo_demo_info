@@ -13,14 +13,14 @@ defmodule CSVParser do
       tick_rate = round(1/tick_rate)
       
       result = csv_stream 
-                    |> Enum.map(&String.trim_trailing(&1, "\n")) 
+                    |> Enum.map(&String.trim_trailing(&1, "\n"))
                     |> Enum.reduce([[], []], &parse_csv_line(&1, &2))
 
       [kills, players] = result
       kills = kills
               |> Enum.sort(fn(k1, k2) -> k1.tick < k2.tick end)
               |> Enum.group_by(fn(k) -> k.round end)
-              |> Enum.map(fn {k, v} -> 
+              |> Enum.map(fn {k, v} ->
                 kill = %{Enum.at(v, 0) | first_of_round: true}
                 v = v |> List.delete_at(0) |> List.insert_at(0, kill)
               end)
@@ -28,8 +28,8 @@ defmodule CSVParser do
       kills = Enum.map(kills, &find_trades(&1, tick_rate, kills))
 
       players = players 
-              |> List.flatten() 
-              |> Enum.uniq() 
+              |> List.flatten()
+              |> Enum.uniq()
               |> Enum.filter(fn(x) -> x != nil end)
               |> Enum.map(&map_kills(&1, kills))
               |> Enum.sort(fn(player1, player2) -> player1.id < player2.id end)
