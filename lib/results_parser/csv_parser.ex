@@ -30,23 +30,6 @@ defmodule CSVParser do
     end
   end
 
-  def parse_game_events(file_name) do
-    if File.exists?("results/#{file_name}.dump") do
-      # parse dump file
-    else
-      IO.puts "No such file results/#{file_name}.dump, please check the directory 
-                or ensure the demo dump goes through as expected"
-    end
-  end
-
-  defp parse_csv_line(line, acc) do
-    player_info = get_player_info(line)
-    kill_info = get_kill_info(line)
-    kills = acc |> Enum.at(0) |> List.insert_at(-1, kill_info)
-    players = acc |> Enum.at(1) |> List.insert_at(-1, player_info)
-    [kills, players]
-  end
-
   defp get_tick_rate(server_info) do
     tick_rate_chunk = server_info 
                       |> Enum.filter(fn(e) ->
@@ -59,9 +42,16 @@ defmodule CSVParser do
                 |> Enum.at(1) 
                 |> String.trim_trailing("\n") 
                 |> String.to_float()
-
-    tick_rate
   end
+
+  defp parse_csv_line(line, acc) do
+    player_info = get_player_info(line)
+    kill_info = get_kill_info(line)
+    kills = acc |> Enum.at(0) |> List.insert_at(-1, kill_info)
+    players = acc |> Enum.at(1) |> List.insert_at(-1, player_info)
+    [kills, players]
+  end
+
 
   defp get_player_info(line) do
     fields = String.split(line, ", ")
@@ -85,7 +75,6 @@ defmodule CSVParser do
     name = Enum.at(fields, 1)
     id = Enum.at(fields, 2) |> String.to_integer()
     player = %Player{name: name, id: id}
-    player
   end
 
   defp get_kill_info(line) do
@@ -109,12 +98,11 @@ defmodule CSVParser do
       get_assist_info(kill, assister)
     end
 
-    kill = if (assist != nil) do
+    if (assist != nil) do
       %{kill | assist: assist}
     else
       kill
     end
-    kill
   end
 
   defp get_assist_info(kill, assister) do
