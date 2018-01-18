@@ -103,11 +103,8 @@ defmodule CSVParser do
       headshot: headshot
     }
 
-    assist = if (assister != nil) do
-      get_assist_info(kill, assister)
-    end
-
-    if (assist != nil) do
+    if (assister != nil) do
+      assist = get_assist_info(kill, assister)
       %{kill | assist: assist}
     else
       kill
