@@ -1,6 +1,6 @@
 defmodule CSVParser do
- 
-  @trade_time_limit 5 # 5 seconds in the past
+  # 5 seconds in the past
+  @trade_time_limit 5
   @num_server_info_lines 19
   @tick_interval_key "tick_interval:"
 
@@ -10,47 +10,54 @@ defmodule CSVParser do
       stream = File.stream!("results/#{file_name}.csv")
       {server_info, csv_stream} = Enum.split(stream, @num_server_info_lines)
       tick_rate = get_tick_rate(server_info)
-      tick_rate = round(1/tick_rate)
-      
-      result = csv_stream 
-                    |> Enum.map(&String.trim_trailing(&1, "\n"))
-                    |> Enum.reduce([[], []], &parse_csv_line(&1, &2))
+      tick_rate = round(1 / tick_rate)
+
+      result =
+        csv_stream
+        |> Enum.map(&String.trim_trailing(&1, "\n"))
+        |> Enum.reduce([[], []], &parse_csv_line(&1, &2))
 
       [kills, players] = result
-      kills = kills
-              |> Enum.sort(fn(k1, k2) -> k1.tick < k2.tick end)
-              |> Enum.group_by(fn(k) -> k.round end)
-              |> Enum.map(fn {k, v} ->
-                kill = %{Enum.at(v, 0) | first_of_round: true}
-                v = v |> List.delete_at(0) |> List.insert_at(0, kill)
-              end)
-              |> List.flatten()
+
+      kills =
+        kills
+        |> Enum.sort(fn k1, k2 -> k1.tick < k2.tick end)
+        |> Enum.group_by(fn k -> k.round end)
+        |> Enum.map(fn {k, v} ->
+          kill = %{Enum.at(v, 0) | first_of_round: true}
+          v = v |> List.delete_at(0) |> List.insert_at(0, kill)
+        end)
+        |> List.flatten()
+
       kills = Enum.map(kills, &find_trades(&1, tick_rate, kills))
 
-      players = players 
-              |> List.flatten()
-              |> Enum.uniq()
-              |> Enum.filter(fn(x) -> x != nil end)
-              |> Enum.map(&map_kills(&1, kills))
-              |> Enum.sort(fn(player1, player2) -> player1.id < player2.id end)
+      players =
+        players
+        |> List.flatten()
+        |> Enum.uniq()
+        |> Enum.filter(fn x -> x != nil end)
+        |> Enum.map(&map_kills(&1, kills))
+        |> Enum.sort(fn player1, player2 -> player1.id < player2.id end)
     else
-      IO.puts "No such file results/#{file_name}.csv, please check the directory 
-                or ensure the demo dump goes through as expected"
+      IO.puts("No such file results/#{file_name}.csv, please check the directory 
+                or ensure the demo dump goes through as expected")
     end
   end
 
   defp get_tick_rate(server_info) do
-    tick_rate_chunk = server_info 
-                      |> Enum.filter(fn(e) ->
-                        e |> String.split(" ") |> Enum.at(0) == @tick_interval_key
-                      end)
+    tick_rate_chunk =
+      server_info
+      |> Enum.filter(fn e ->
+        e |> String.split(" ") |> Enum.at(0) == @tick_interval_key
+      end)
 
-    tick_rate = tick_rate_chunk 
-                |> Enum.at(0) 
-                |> String.split(" ") 
-                |> Enum.at(1) 
-                |> String.trim_trailing("\n") 
-                |> String.to_float()
+    tick_rate =
+      tick_rate_chunk
+      |> Enum.at(0)
+      |> String.split(" ")
+      |> Enum.at(1)
+      |> String.trim_trailing("\n")
+      |> String.to_float()
   end
 
   defp parse_csv_line(line, acc) do
@@ -61,21 +68,23 @@ defmodule CSVParser do
     [kills, players]
   end
 
-
   defp get_player_info(line) do
     fields = String.split(line, ", ")
     victim_fields = Enum.slice(fields, 0, 9)
     attacker_fields = Enum.slice(fields, 9, 9)
 
-    assister_fields = if (Enum.count(fields) == 31) do
-      Enum.slice(fields, 18, 9)
-    end
+    assister_fields =
+      if Enum.count(fields) == 31 do
+        Enum.slice(fields, 18, 9)
+      end
 
     victim = get_player_info_from_fields(victim_fields)
     attacker = get_player_info_from_fields(attacker_fields)
-    assister = if (assister_fields != nil) do
-      get_player_info_from_fields(assister_fields)
-    end
+
+    assister =
+      if assister_fields != nil do
+        get_player_info_from_fields(assister_fields)
+      end
 
     [victim, attacker, assister]
   end
@@ -93,17 +102,17 @@ defmodule CSVParser do
     round = String.to_integer(round)
     tick = String.to_integer(tick)
     headshot = String.to_existing_atom(headshot)
-    
-    kill = %Kill {
-      attacker_name: attacker.name, 
-      victim_name: victim.name, 
-      weapon: weapon, 
-      round: round, 
-      tick: tick, 
+
+    kill = %Kill{
+      attacker_name: attacker.name,
+      victim_name: victim.name,
+      weapon: weapon,
+      round: round,
+      tick: tick,
       headshot: headshot
     }
 
-    if (assister != nil) do
+    if assister != nil do
       assist = get_assist_info(kill, assister)
       %{kill | assist: assist}
     else
@@ -112,23 +121,24 @@ defmodule CSVParser do
   end
 
   defp get_assist_info(kill, assister) do
-    %Assist {
-      victim_name: kill.victim_name, 
-      assister_name: assister.name, 
+    %Assist{
+      victim_name: kill.victim_name,
+      assister_name: assister.name,
       round: kill.round,
       tick: kill.tick
     }
   end
 
   defp find_trades(kill, tick_rate, kills) do
-    filtered_kills = kills 
-                    |> Enum.filter(fn(k) -> 
-                        Range.new(k.tick - (@trade_time_limit * tick_rate), k.tick) 
-                        |> Enum.member?(kill.tick)
-                    end)
-                    |> Enum.filter(fn(k) ->
-                        k.attacker_name == kill.victim_name
-                    end)
+    filtered_kills =
+      kills
+      |> Enum.filter(fn k ->
+        Range.new(k.tick - @trade_time_limit * tick_rate, k.tick)
+        |> Enum.member?(kill.tick)
+      end)
+      |> Enum.filter(fn k ->
+        k.attacker_name == kill.victim_name
+      end)
 
     if Enum.at(filtered_kills, 0) != nil do
       %{kill | trade: true}
@@ -138,27 +148,39 @@ defmodule CSVParser do
   end
 
   defp map_kills(player, kills) do
-    [player_kills, player_assists, player_deaths] = Enum.reduce(kills, [[], [], []], fn(kill, acc) ->
-      k = if kill.attacker_name == player.name, do: kill
-      assist = if kill.assist != nil && kill.assist.assister_name == player.name, do: kill.assist
-      death = if kill.victim_name == player.name, do: kill
-      kills = if k != nil do
-       acc |> Enum.at(0) |> List.insert_at(-1, k)
-      else 
-        Enum.at(acc, 0)
-      end
-      assists = if assist != nil do 
-        acc |> Enum.at(1) |> List.insert_at(-1, assist) 
-      else
-         Enum.at(acc, 1)
-      end
-      deaths = if death != nil do
-        acc |> Enum.at(2) |> List.insert_at(-1, death) 
-      else 
-        Enum.at(acc, 2)
-      end
-      [kills, assists, deaths]
-    end)
+    [player_kills, player_assists, player_deaths] =
+      Enum.reduce(kills, [[], [], []], fn kill, acc ->
+        k = if kill.attacker_name == player.name, do: kill
+
+        assist =
+          if kill.assist != nil && kill.assist.assister_name == player.name, do: kill.assist
+
+        death = if kill.victim_name == player.name, do: kill
+
+        kills =
+          if k != nil do
+            acc |> Enum.at(0) |> List.insert_at(-1, k)
+          else
+            Enum.at(acc, 0)
+          end
+
+        assists =
+          if assist != nil do
+            acc |> Enum.at(1) |> List.insert_at(-1, assist)
+          else
+            Enum.at(acc, 1)
+          end
+
+        deaths =
+          if death != nil do
+            acc |> Enum.at(2) |> List.insert_at(-1, death)
+          else
+            Enum.at(acc, 2)
+          end
+
+        [kills, assists, deaths]
+      end)
+
     %{player | kills: player_kills, assists: player_assists, deaths: player_deaths}
   end
 end
