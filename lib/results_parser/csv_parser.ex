@@ -91,7 +91,7 @@ defmodule CSVParser do
 
   defp get_player_info_from_fields(fields) do
     name = Enum.at(fields, 1)
-    id = Enum.at(fields, 2) |> String.to_integer()
+    id = fields |> Enum.at(2) |> String.to_integer()
     %Player{name: name, id: id}
   end
 
