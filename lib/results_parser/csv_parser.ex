@@ -83,7 +83,7 @@ defmodule CSVParser do
   defp get_player_info_from_fields(fields) do
     name = Enum.at(fields, 1)
     id = Enum.at(fields, 2) |> String.to_integer()
-    player = %Player{name: name, id: id}
+    %Player{name: name, id: id}
   end
 
   defp get_kill_info(line) do
