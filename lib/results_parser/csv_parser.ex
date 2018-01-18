@@ -10,9 +10,9 @@ defmodule CSVParser do
       {server_info, csv_stream} = Enum.split(stream, @num_server_info_lines)
       tick_rate = get_tick_rate(server_info)
       
-      {_, result} = csv_stream 
+      result = csv_stream 
                     |> Enum.map(&String.trim_trailing(&1, "\n")) 
-                    |> Enum.map_reduce([[], []], &parse_csv_line(&1, &2))
+                    |> Enum.reduce([[], []], &parse_csv_line(&1, &2))
 
       [kills, players] = result
 
@@ -20,9 +20,7 @@ defmodule CSVParser do
               |> List.flatten() 
               |> Enum.uniq() 
               |> Enum.filter(fn(x) -> x != nil end)
-              |> Enum.map(&find_kills(&1, kills))
-              |> Enum.map(&find_deaths(&1, kills))
-              |> Enum.map(&find_assists(&1, kills))
+              |> Enum.map(&map_kills(&1, kills))
               |> Enum.sort(fn(player1, player2) -> player1.id < player2.id end)
 
       IO.inspect players
@@ -46,7 +44,7 @@ defmodule CSVParser do
     kill_info = get_kill_info(line)
     kills = acc |> Enum.at(0) |> List.insert_at(-1, kill_info)
     players = acc |> Enum.at(1) |> List.insert_at(-1, player_info)
-    {nil ,[kills, players]} # returns this for map_reduce function.
+    [kills, players]
   end
 
   defp get_tick_rate(server_info) do
@@ -110,7 +108,7 @@ defmodule CSVParser do
     }
 
     assist = if (assister != nil) do
-        get_assist_info(kill, assister)
+      get_assist_info(kill, assister)
     end
 
     kill = if (assist != nil) do
@@ -130,27 +128,17 @@ defmodule CSVParser do
     }
   end
 
-  defp find_kills(player, kills) do
-    player_kills = kills |> Enum.filter(fn(kill) -> kill.attacker_name == player.name end)
-    player = %{player | kills: player_kills}
-    player
-  end
-
-  defp find_deaths(player, kills) do
-    player_deaths = kills |> Enum.filter(fn(kill) -> kill.victim_name == player.name end)
-    player = %{player | deaths: player_deaths}
-    player
-  end
-
-  defp find_assists(player, kills) do
-    player_assists = kills |> Enum.reduce([], fn(kill, acc) ->
-      acc = if (kill.assist != nil && kill.assist.assister_name == player.name) do
-        List.insert_at(acc, -1, kill.assist)
-      else
-        acc
-      end
+  defp map_kills(player, kills) do
+    [player_kills, player_assists, player_deaths] = Enum.reduce(kills, [[], [], []], fn(kill, acc) ->
+      k = if kill.attacker_name == player.name, do: kill
+      assist = if kill.assist != nil && kill.assist.assister_name == player.name, do: kill.assist
+      death = if kill.victim_name == player.name, do: kill
+      kills = if k != nil, do: acc |> Enum.at(0) |> List.insert_at(-1, k), else: Enum.at(acc, 0)
+      assists = if assist != nil, do: acc |> Enum.at(1) |> List.insert_at(-1, assist), else: Enum.at(acc, 1)
+      deaths = if death != nil, do: acc |> Enum.at(2) |> List.insert_at(-1, death), else: Enum.at(acc, 2)
+      acc = [kills, assists, deaths]
+      acc
     end)
-    player = %{player | assists: player_assists}
-    player
+    player = %{player | kills: player_kills, assists: player_assists, deaths: player_deaths}
   end
 end
