@@ -7,10 +7,10 @@ defmodule Mix.Tasks.DemoInfoGoTask.Parse do
 
   def run(args) do
     filter_options = fn arg ->
-      arg == "-deathscsv" || arg == "-gameevents" || arg == "-skipparse"
+      arg == "-deathscsv" || arg == "-gameevents" || arg == "-skipdump"
     end
 
-    filter_args = fn arg -> arg != "-deathscsv" && arg != "-gameevents" && arg != "-skipparse" end
+    filter_args = fn arg -> arg != "-deathscsv" && arg != "-gameevents" && arg != "-skipdump" end
     options = Enum.filter(args, filter_options)
     new_args = Enum.filter(args, filter_args)
 
@@ -19,7 +19,7 @@ defmodule Mix.Tasks.DemoInfoGoTask.Parse do
     else
       parse = fn x -> DemoInfoGo.parse_demo(x, options) end
 
-      if !Enum.any?(options, fn str -> str == "-skipparse" end) do
+      if !Enum.any?(options, fn str -> str == "-skipdump" end) do
         new_args
         |> OptionParser.parse()
         |> elem(1)
