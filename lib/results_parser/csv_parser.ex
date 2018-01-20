@@ -1,4 +1,17 @@
 defmodule CSVParser do
+  @moduledoc """
+  Documentation for CSVParser.
+  This module parses the csvs dumped by the -deathscsv command.
+  The data has a header containing the map name as well as the tick rate.
+  Expected data arrives as such. victim(player), attacker(player), assister(player:optional) and then weapon, headshot, round and tick
+  Player fields consist of kill_participant(victim, attacker, assister), name, id, posx, posy, posz, aimx, aimy, side (T || CT)
+  Only the name and id are saved for now.
+
+  This module first parses the data to receive all kills and players. Also maps assists to kills.
+  Then finds first kills of each round and finds trade kills
+  Then maps the kills onto each player.
+  """
+
   # 5 seconds in the past
   @trade_time_limit 5
   @num_server_info_lines 19
@@ -23,13 +36,15 @@ defmodule CSVParser do
         kills
         |> Enum.sort(fn k1, k2 -> k1.tick < k2.tick end)
         |> Enum.group_by(fn k -> k.round end)
-        |> Enum.map(fn {k, v} ->
+        |> Enum.map(fn {_, v} ->
           kill = %{Enum.at(v, 0) | first_of_round: true}
-          v = v |> List.delete_at(0) |> List.insert_at(0, kill)
+          v |> List.delete_at(0) |> List.insert_at(0, kill)
         end)
         |> List.flatten()
 
       kills = Enum.map(kills, &find_trades(&1, tick_rate, kills))
+
+      IO.inspect(kills)
 
       players =
         players
@@ -51,13 +66,12 @@ defmodule CSVParser do
         e |> String.split(" ") |> Enum.at(0) == @tick_interval_key
       end)
 
-    tick_rate =
-      tick_rate_chunk
-      |> Enum.at(0)
-      |> String.split(" ")
-      |> Enum.at(1)
-      |> String.trim_trailing("\n")
-      |> String.to_float()
+    tick_rate_chunk
+    |> Enum.at(0)
+    |> String.split(" ")
+    |> Enum.at(1)
+    |> String.trim_trailing("\n")
+    |> String.to_float()
   end
 
   defp parse_csv_line(line, acc) do
@@ -95,9 +109,16 @@ defmodule CSVParser do
     %Player{name: name, id: id}
   end
 
+  defp get_player_position(fields) do
+    victim_position = fields |> Enum.slice(3, 3) |> Enum.map(&String.to_float(&1))
+    attacker_position = fields |> Enum.slice(12, 3) |> Enum.map(&String.to_float(&1))
+    [victim_position, attacker_position]
+  end
+
   defp get_kill_info(line) do
     fields = String.split(line, ", ")
     [victim, attacker, assister] = get_player_info(line)
+    [victim_position, attacker_position] = get_player_position(fields)
     [weapon, headshot, round, tick] = Enum.take(fields, -4)
     round = String.to_integer(round)
     tick = String.to_integer(tick)
@@ -109,7 +130,9 @@ defmodule CSVParser do
       weapon: weapon,
       round: round,
       tick: tick,
-      headshot: headshot
+      headshot: headshot,
+      victim_position: victim_position,
+      attacker_position: attacker_position
     }
 
     if assister != nil do

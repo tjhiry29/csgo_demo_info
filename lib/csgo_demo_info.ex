@@ -11,7 +11,9 @@ defmodule DemoInfoGo do
       "-deathscsv" ->
         CSVParser.parse_deaths_csv(file_name)
 
-      # "-gameevents" -> ResultsParser.parse_game_events(file_name)
+      "-gameevents" ->
+        DumpParser.parse_game_events(file_name)
+
       _ ->
         IO.puts("Error: invalid type")
     end
@@ -31,8 +33,8 @@ defmodule DemoInfoGo do
 
   defp game_events(file_name) do
     cond do
-      File.exists?("results/#{file_name}.dump") ->
-        IO.puts("Please see the results directory for the following file #{file_name}.dump")
+      # File.exists?("results/#{file_name}.dump") ->
+      #   IO.puts("Please see the results directory for the following file #{file_name}.dump")
 
       File.exists?("demoinfogo/#{file_name}.dem") ->
         IO.puts("Starting game events dump")
@@ -51,8 +53,8 @@ defmodule DemoInfoGo do
 
   defp deaths_csv(file_name) do
     cond do
-      File.exists?("results/#{file_name}.csv") ->
-        IO.puts("Please see the results directory for the following file #{file_name}.csv")
+      # File.exists?("results/#{file_name}.csv") ->
+      #   IO.puts("Please see the results directory for the following file #{file_name}.csv")
 
       File.exists?("demoinfogo/#{file_name}.dem") ->
         IO.puts("Starting deaths csv dump")
