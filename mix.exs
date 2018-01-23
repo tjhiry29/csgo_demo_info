@@ -3,7 +3,7 @@ defmodule Demoinfogo.Mixfile do
 
   def project do
     [
-      app: :csgo_demo_info,
+      app: :demo_info_go,
       version: "0.1.0",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,

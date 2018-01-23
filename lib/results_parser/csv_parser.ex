@@ -1,4 +1,4 @@
-defmodule CSVParser do
+defmodule ResultsParser.CSVParser do
   @moduledoc """
   Documentation for CSVParser.
   This module parses the csvs dumped by the -deathscsv command.
@@ -11,6 +11,9 @@ defmodule CSVParser do
   Then finds first kills of each round and finds trade kills
   Then maps the kills onto each player.
   """
+  alias Kill, as: Kill
+  alias Player, as: Player
+  alias Assist, as: Assist
 
   # 5 seconds in the past
   @trade_time_limit 5
