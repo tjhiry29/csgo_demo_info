@@ -39,18 +39,31 @@ defmodule ResultsParser.DumpParser do
 
       {list, _} = result
       list = list |> Enum.filter(fn x -> x != nil end)
-
       events_map =
-        list |> Enum.filter(fn x ->
+        list
+        |> Enum.filter(fn x ->
           !Enum.member?(@filter_events, x.type)
         end)
-        |> Enum.group_by(fn x -> x.type end)
+        |> Enum.sort(fn e1, e2 ->
+          e1.fields |> Map.get("round_num") |> String.to_integer() <
+            e2.fields |> Map.get("round_num") |> String.to_integer()
+        end)
+        |> Enum.sort(fn e1, e2 ->
+          e1.fields |> Map.get("tick") |> String.to_integer() <
+            e2.fields |> Map.get("tick") |> String.to_integer()
+        end)
+        |> Enum.group_by(fn x -> Map.get(x.fields, "round_num") |> String.to_integer() end)
+        |> Enum.reduce([], fn {round_num, events}, acc -> process_round(events, acc) end)
 
-      IO.inspect events_map
+      IO.inspect(events_map)
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory 
                 or ensure the demo dump goes through as expected")
     end
+  end
+
+  defp process_round(events, acc) do
+    events
   end
 
   defp get_tick_rate(server_info) do
