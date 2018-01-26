@@ -6,7 +6,6 @@ defmodule ResultsParser.DumpParser do
   @filter_events [
     "round_announce_match_point",
     "decoy_started",
-    "player_spawn",
     "announce_phase_end",
     "round_time_warning",
     "round_announce_last_round_half",
@@ -39,6 +38,7 @@ defmodule ResultsParser.DumpParser do
 
       {list, _} = result
       list = list |> Enum.filter(fn x -> x != nil end)
+
       events_map =
         list
         |> Enum.filter(fn x ->
@@ -53,7 +53,9 @@ defmodule ResultsParser.DumpParser do
             e2.fields |> Map.get("tick") |> String.to_integer()
         end)
         |> Enum.group_by(fn x -> Map.get(x.fields, "round_num") |> String.to_integer() end)
-        |> Enum.reduce([], fn {round_num, events}, acc -> process_round(events, acc) end)
+        |> Enum.reduce([], fn {round_num, events}, acc ->
+          process_round(events, acc, round_num)
+        end)
 
       IO.inspect(events_map)
     else
@@ -62,7 +64,7 @@ defmodule ResultsParser.DumpParser do
     end
   end
 
-  defp process_round(events, acc) do
+  defp process_round(events, acc, round_num) do
     events
   end
 
