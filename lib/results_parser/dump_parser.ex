@@ -165,7 +165,7 @@ defmodule ResultsParser.DumpParser do
     health = user.health - dmg_dealt
     new_health = if health < 0, do: 0, else: health
 
-    dmg_dealt = if new_health == 0 && dmg_dealt < 100, do: health, else: dmg_dealt
+    dmg_dealt = if new_health == 0, do: user.health, else: dmg_dealt
     user = %{user | health: new_health}
 
     if Map.get(event.fields, "attacker") == "0" do
