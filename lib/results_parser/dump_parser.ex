@@ -91,8 +91,8 @@ defmodule ResultsParser.DumpParser do
         end)
         |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
-      IO.inspect(adr)
-      # IO.inspect players_map
+      # IO.inspect(adr)
+      IO.inspect Map.get(players_map, 1)
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory 
                 or ensure the demo dump goes through as expected")
@@ -262,8 +262,7 @@ defmodule ResultsParser.DumpParser do
         assist: assist
       }
 
-      deaths = [kill | user.deaths]
-      user = %{user | deaths: deaths}
+      user = %{user | death: kill}
       kills = [kill | attacker.kills]
       attacker = %{attacker | kills: kills}
 
