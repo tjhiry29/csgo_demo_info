@@ -128,20 +128,31 @@ defmodule ResultsParser.DumpParser do
 
           player_round_records = List.replace_at(player_round_records, user_index, user)
 
-          {player_round_records, tmp_events} =
-            if attacker == nil && attacker_index == nil do
-              {player_round_records, tmp_events}
-            else
-              player_round_records =
-                List.replace_at(player_round_records, attacker_index, attacker)
+          if attacker == nil && attacker_index == nil do
+            {player_round_records, tmp_events}
+          else
+            player_round_records = List.replace_at(player_round_records, attacker_index, attacker)
 
-              {player_round_records, tmp_events}
+            {player_round_records, tmp_events}
+          end
+
+        "player_death" ->
+          {attacker, attacker_index, user, user_index, assister, assister_index} =
+            process_player_death_event(event, player_round_records)
+
+          player_round_records =
+            player_round_records
+            |> List.replace_at(user_index, user)
+            |> List.replace_at(attacker_index, attacker)
+
+          player_round_records =
+            if assister != nil do
+              List.replace_at(player_round_records, assister_index, assister)
+            else
+              player_round_records
             end
 
           {player_round_records, tmp_events}
-
-        "player_death" ->
-          acc
 
         "weapon_fire" ->
           acc
@@ -154,8 +165,6 @@ defmodule ResultsParser.DumpParser do
       end
   end
 
-  # TODO: when a player gets hurt reduce its health by the dmg_health amount.
-  # take that into account when calculating the damage dealt. (might not actually be 100 damage dealt)
   defp process_player_hurt_event(event, player_round_records) do
     [_, id] = process_player_field(event)
     user_index = Enum.find_index(player_round_records, fn p -> p.id == id end)
@@ -199,8 +208,75 @@ defmodule ResultsParser.DumpParser do
     end
   end
 
-  defp process_player_death_event(event) do
-    event
+  defp process_player_death_event(event, player_round_records) do
+    [_, id] = process_player_field(event)
+    user_index = Enum.find_index(player_round_records, fn p -> p.id == id end)
+    user = Enum.at(player_round_records, user_index)
+    user = %{user | dead: true}
+    victim_position = Map.get(event.fields, "position")
+    round = Map.get(event.fields, "round_num") |> String.to_integer()
+    tick = Map.get(event.fields, "tick") |> String.to_integer()
+    headshot = Map.get(event.fields, "headshot") == "1"
+    weapon = Map.get(event.fields, "weapon")
+
+    if Map.get(event.fields, "attacker") == "0" do
+      IO.inspect(event)
+    else
+      [_, attacker_id] = process_player_field(event, "attacker")
+      attacker_index = Enum.find_index(player_round_records, fn p -> p.id == attacker_id end)
+      attacker = Enum.at(player_round_records, attacker_index)
+
+      attacker_position = Map.get(event.fields, "position_2")
+
+      [_, assister_id] =
+        if Map.get(event.fields, "assister") != "0" do
+          process_player_field(event, "assister")
+        else
+          [nil, nil]
+        end
+
+      assister_index = Enum.find_index(player_round_records, fn p -> p.id == assister_id end)
+
+      {assister, assist} =
+        if assister_id != nil do
+          {assister = Enum.at(player_round_records, assister_index),
+           %Assist{
+             victim_name: user.name,
+             assister_name: Enum.at(player_round_records, assister_index).name,
+             round: round,
+             tick: tick
+           }}
+        else
+          {nil, nil}
+        end
+
+      kill = %Kill{
+        attacker_name: attacker.name,
+        victim_name: user.name,
+        weapon: weapon,
+        round: round,
+        tick: tick,
+        headshot: headshot,
+        victim_position: victim_position,
+        attacker_position: attacker_position,
+        assist: assist
+      }
+
+      deaths = [kill | user.deaths]
+      user = %{user | deaths: deaths}
+      kills = [kill | attacker.kills]
+      attacker = %{attacker | kills: kills}
+
+      assister =
+        if assister != nil do
+          assists = [assist | assister.assists]
+          %{assister | assists: assists}
+        else
+          assister
+        end
+
+      {attacker, attacker_index, user, user_index, assister, assister_index}
+    end
   end
 
   defp process_weapon_fire_event(event) do
