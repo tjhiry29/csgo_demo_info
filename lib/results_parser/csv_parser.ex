@@ -47,8 +47,6 @@ defmodule ResultsParser.CSVParser do
 
       kills = Enum.map(kills, &find_trades(&1, tick_rate, kills))
 
-      IO.inspect(kills)
-
       players =
         players
         |> List.flatten()

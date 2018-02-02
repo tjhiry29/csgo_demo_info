@@ -5,10 +5,11 @@ defmodule PlayerRoundRecord do
     :team,
     :round,
     assists: [],
-    damage_dealt: 0,
+    damage_dealt: %{},
     dead: false,
     flash_assists: 0,
     grenade_throws: [],
+    health: 100,
     kills: [],
     traded: false
   ]
