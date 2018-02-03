@@ -22,6 +22,13 @@ defmodule ResultsParser.DumpParser do
     "round_announce_match_start",
     "round_end"
   ]
+  @grenades [
+    "weapon_flashbang",
+    "weapon_molotov",
+    "weapon_smokegrenade",
+    "weapon_hegrenade",
+    "weapon_incgrenade"
+  ]
 
   def parse_game_events(file_name) do
     if File.exists?("results/#{file_name}.dump") do
@@ -91,8 +98,8 @@ defmodule ResultsParser.DumpParser do
         end)
         |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
-      # IO.inspect(adr)
-      IO.inspect Map.get(players_map, 1)
+      IO.inspect(adr)
+      # IO.inspect Map.get(players_map, 1)
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory 
                 or ensure the demo dump goes through as expected")
@@ -120,49 +127,60 @@ defmodule ResultsParser.DumpParser do
   defp process_round_game_events(event, acc, round_num) do
     {player_round_records, tmp_events} = acc
 
-    tmp_events =
-      case event.type do
-        "player_hurt" ->
-          {attacker, attacker_index, user, user_index} =
-            process_player_hurt_event(event, player_round_records)
+    case event.type do
+      "player_hurt" ->
+        {attacker, attacker_index, user, user_index} =
+          process_player_hurt_event(event, player_round_records)
 
-          player_round_records = List.replace_at(player_round_records, user_index, user)
+        player_round_records = List.replace_at(player_round_records, user_index, user)
 
-          if attacker == nil && attacker_index == nil do
-            {player_round_records, tmp_events}
-          else
-            player_round_records = List.replace_at(player_round_records, attacker_index, attacker)
+        player_round_records =
+          cond do
+            attacker != nil && attacker_index != nil ->
+              List.replace_at(player_round_records, attacker_index, attacker)
 
-            {player_round_records, tmp_events}
+            true ->
+              player_round_records
           end
 
-        "player_death" ->
-          {attacker, attacker_index, user, user_index, assister, assister_index} =
-            process_player_death_event(event, player_round_records)
+        {player_round_records, tmp_events}
 
-          player_round_records =
-            player_round_records
-            |> List.replace_at(user_index, user)
-            |> List.replace_at(attacker_index, attacker)
+      "player_death" ->
+        {attacker, attacker_index, user, user_index, assister, assister_index} =
+          process_player_death_event(event, player_round_records)
 
-          player_round_records =
-            if assister != nil do
+        player_round_records =
+          player_round_records
+          |> List.replace_at(user_index, user)
+          |> List.replace_at(attacker_index, attacker)
+
+        player_round_records =
+          cond do
+            assister != nil ->
               List.replace_at(player_round_records, assister_index, assister)
-            else
+
+            true ->
               player_round_records
-            end
+          end
 
-          {player_round_records, tmp_events}
+        {player_round_records, tmp_events}
 
-        "weapon_fire" ->
-          acc
+      "weapon_fire" ->
+        cond do
+          Enum.member?(@grenades, Map.get(event.fields, "weapon")) ->
+            process_weapon_fire_event(event)
+            {player_round_records, tmp_events}
 
-        "player_blind" ->
-          acc
+          true ->
+            {player_round_records, tmp_events}
+        end
 
-        _ ->
-          acc
-      end
+      "player_blind" ->
+        acc
+
+      _ ->
+        acc
+    end
   end
 
   defp process_player_hurt_event(event, player_round_records) do
@@ -184,27 +202,26 @@ defmodule ResultsParser.DumpParser do
       attacker_index = Enum.find_index(player_round_records, fn p -> p.id == attacker_id end)
       attacker = Enum.at(player_round_records, attacker_index)
 
-      {_, map} =
-        Map.get_and_update(attacker.damage_dealt, id, fn val ->
-          new_val =
-            if val == nil do
-              dmg_dealt
-            else
-              val + dmg_dealt
-            end
+      cond do
+        attacker.team == user.team ->
+          {attacker, attacker_index, user, user_index}
 
-          new_val =
-            if new_val > 100 do
-              100
-            else
-              new_val
-            end
+        true ->
+          {_, map} =
+            Map.get_and_update(attacker.damage_dealt, id, fn val ->
+              new_val =
+                cond do
+                  val == nil -> dmg_dealt
+                  val + dmg_dealt > 100 -> 100
+                  true -> val + dmg_dealt
+                end
 
-          {val, new_val}
-        end)
+              {val, new_val}
+            end)
 
-      attacker = %{attacker | damage_dealt: map}
-      {attacker, attacker_index, user, user_index}
+          attacker = %{attacker | damage_dealt: map}
+          {attacker, attacker_index, user, user_index}
+      end
     end
   end
 
@@ -229,25 +246,29 @@ defmodule ResultsParser.DumpParser do
       attacker_position = Map.get(event.fields, "position_2")
 
       [_, assister_id] =
-        if Map.get(event.fields, "assister") != "0" do
-          process_player_field(event, "assister")
-        else
-          [nil, nil]
+        cond do
+          Map.get(event.fields, "assister") != "0" ->
+            process_player_field(event, "assister")
+
+          true ->
+            [nil, nil]
         end
 
       assister_index = Enum.find_index(player_round_records, fn p -> p.id == assister_id end)
 
       {assister, assist} =
-        if assister_id != nil do
-          {assister = Enum.at(player_round_records, assister_index),
-           %Assist{
-             victim_name: user.name,
-             assister_name: Enum.at(player_round_records, assister_index).name,
-             round: round,
-             tick: tick
-           }}
-        else
-          {nil, nil}
+        cond do
+          assister_id != nil ->
+            {assister = Enum.at(player_round_records, assister_index),
+             %Assist{
+               victim_name: user.name,
+               assister_name: Enum.at(player_round_records, assister_index).name,
+               round: round,
+               tick: tick
+             }}
+
+          true ->
+            {nil, nil}
         end
 
       kill = %Kill{
@@ -270,8 +291,6 @@ defmodule ResultsParser.DumpParser do
         if assister != nil do
           assists = [assist | assister.assists]
           %{assister | assists: assists}
-        else
-          assister
         end
 
       {attacker, attacker_index, user, user_index, assister, assister_index}
