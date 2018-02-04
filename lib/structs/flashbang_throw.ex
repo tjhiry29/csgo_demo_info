@@ -13,11 +13,11 @@ defmodule FlashbangThrow do
     detonated: false
   ]
 
-  def is_flashbang_throw?(%FlashbangThrow{}) do
+  def is_flashbang_throw(%FlashbangThrow{}) do
       true
   end
 
-  def is_flashbang_throw?(_) do
+  def is_flashbang_throw(_) do
       false
   end
 end
