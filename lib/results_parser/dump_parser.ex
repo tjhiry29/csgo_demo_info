@@ -104,7 +104,7 @@ defmodule ResultsParser.DumpParser do
         |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
       # IO.inspect(adr)
-      IO.inspect Enum.at(Map.get(players_map, 29), 0)
+      IO.inspect(Enum.at(Map.get(players_map, 29), 0))
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory 
                 or ensure the demo dump goes through as expected")
@@ -185,14 +185,52 @@ defmodule ResultsParser.DumpParser do
         end
 
       "player_blind" ->
-        process_player_blind_event(event)
-        acc
+        {flashbang_detonate, event_index, attacker, attacker_index} =
+          process_player_blind_event(event, player_round_records, tmp_events)
+
+        player_round_records = List.replace_at(player_round_records, attacker_index, attacker)
+        tmp_events = List.replace_at(tmp_events, event_index, flashbang_detonate)
+
+        {player_round_records, tmp_events}
 
       "hegrenade_detonate" ->
         acc
 
       "flashbang_detonate" ->
-        acc
+        {user, user_index, id} = find_player(event, player_round_records)
+
+        event_index =
+          tmp_events
+          |> Enum.find_index(fn e ->
+            cond do
+              Map.has_key?(e, :detonated) && Map.has_key?(e, :flash_assist) &&
+                e.detonated == false && e.player_id == id ->
+                true
+
+              true ->
+                false
+            end
+          end)
+
+        x = Map.get(event.fields, "x")
+        y = Map.get(event.fields, "y")
+        z = Map.get(event.fields, "z")
+        location = Enum.join([x, y, z], ", ")
+
+        flashbang_throw =
+          tmp_events
+          |> Enum.at(event_index)
+          |> Map.put(:detonated, true)
+          |> Map.put(:location, location)
+
+        event = %{event | fields: Map.put(event.fields, "flashbang_throw", flashbang_throw)}
+
+        tmp_events =
+          tmp_events
+          |> List.delete_at(event_index)
+          |> List.insert_at(0, event)
+
+        {player_round_records, tmp_events}
 
       "smokegrenade_detonate" ->
         acc
@@ -211,10 +249,14 @@ defmodule ResultsParser.DumpParser do
     end
   end
 
-  defp process_player_hurt_event(event, player_round_records) do
-    [_, id] = process_player_field(event)
+  defp find_player(event, player_round_records, field \\ "userid") do
+    [_, id] = process_player_field(event, field)
     user_index = Enum.find_index(player_round_records, fn p -> p.id == id end)
-    user = Enum.at(player_round_records, user_index)
+    {Enum.at(player_round_records, user_index || 11), user_index, id}
+  end
+
+  defp process_player_hurt_event(event, player_round_records) do
+    {user, user_index, id} = find_player(event, player_round_records)
     dmg_dealt = event.fields |> Map.get("dmg_health") |> String.to_integer()
 
     health = user.health - dmg_dealt
@@ -226,9 +268,7 @@ defmodule ResultsParser.DumpParser do
     if Map.get(event.fields, "attacker") == "0" do
       {nil, nil, user, user_index}
     else
-      [_, attacker_id] = process_player_field(event, "attacker")
-      attacker_index = Enum.find_index(player_round_records, fn p -> p.id == attacker_id end)
-      attacker = Enum.at(player_round_records, attacker_index)
+      {attacker, attacker_index, _} = find_player(event, player_round_records, "attacker")
 
       cond do
         attacker.team == user.team ->
@@ -254,9 +294,7 @@ defmodule ResultsParser.DumpParser do
   end
 
   defp process_player_death_event(event, player_round_records) do
-    [_, id] = process_player_field(event)
-    user_index = Enum.find_index(player_round_records, fn p -> p.id == id end)
-    user = Enum.at(player_round_records, user_index)
+    {user, user_index, _} = find_player(event, player_round_records)
     user = %{user | dead: true}
     victim_position = Map.get(event.fields, "position")
     round = Map.get(event.fields, "round_num") |> String.to_integer()
@@ -267,36 +305,30 @@ defmodule ResultsParser.DumpParser do
     if Map.get(event.fields, "attacker") == "0" do
       IO.inspect(event)
     else
-      [_, attacker_id] = process_player_field(event, "attacker")
-      attacker_index = Enum.find_index(player_round_records, fn p -> p.id == attacker_id end)
-      attacker = Enum.at(player_round_records, attacker_index)
-
+      {attacker, attacker_index, _} = find_player(event, player_round_records, "attacker")
       attacker_position = Map.get(event.fields, "position_2")
 
-      [_, assister_id] =
+      {assister, assister_index, _} =
         cond do
           Map.get(event.fields, "assister") != "0" ->
-            process_player_field(event, "assister")
+            find_player(event, player_round_records, "assister")
 
           true ->
-            [nil, nil]
+            {nil, nil, nil}
         end
 
-      assister_index = Enum.find_index(player_round_records, fn p -> p.id == assister_id end)
-
-      {assister, assist} =
+      assist =
         cond do
-          assister_id != nil ->
-            {assister = Enum.at(player_round_records, assister_index),
-             %Assist{
-               victim_name: user.name,
-               assister_name: Enum.at(player_round_records, assister_index).name,
-               round: round,
-               tick: tick
-             }}
+          assister != nil ->
+            %Assist{
+              victim_name: user.name,
+              assister_name: Enum.at(player_round_records, assister_index).name,
+              round: round,
+              tick: tick
+            }
 
           true ->
-            {nil, nil}
+            nil
         end
 
       kill = %Kill{
@@ -327,8 +359,8 @@ defmodule ResultsParser.DumpParser do
 
   defp process_weapon_fire_event(event) do
     [player_name, player_id] = process_player_field(event)
-    tick = Map.get(event.fields, "tick")
-    round = Map.get(event.fields, "round_num")
+    tick = Map.get(event.fields, "tick") |> String.to_integer()
+    round = Map.get(event.fields, "round_num") |> String.to_integer()
     origin = Map.get(event.fields, "position")
     facing = Map.get(event.fields, "facing")
 
@@ -388,6 +420,70 @@ defmodule ResultsParser.DumpParser do
     end
   end
 
+  defp process_player_blind_event(event, player_round_records, tmp_events) do
+    {user, _, user_id} = find_player(event, player_round_records)
+
+    {attacker, attacker_index, attacker_id} = find_player(event, player_round_records, "attacker")
+
+    event_index =
+      Enum.find_index(tmp_events, fn e ->
+        cond do
+          Map.has_key?(e, :type) && e.type == "flashbang_detonate" &&
+            Map.get(e.fields, "tick") == Map.get(event.fields, "tick") &&
+              Map.get(e.fields, "flashbang_throw").player_id == attacker_id ->
+            true
+
+          true ->
+            false
+        end
+      end)
+
+    flashbang_detonate = Enum.at(tmp_events, event_index)
+    flashbang_throw = Map.get(flashbang_detonate.fields, "flashbang_throw")
+
+    flashbang_throw =
+      cond do
+        user != nil ->
+          duration = Map.get(event.fields, "blind_duration") |> String.to_float()
+          total_blind_duration = flashbang_throw.total_blind_duration + duration
+
+          {_, map} =
+            Map.get_and_update(flashbang_throw.player_blind_duration, user_id, fn val ->
+              new_val =
+                cond do
+                  val == nil -> duration
+                  true -> duration + val
+                end
+
+              {val, new_val}
+            end)
+
+          flashbang_throw
+          |> Map.put(:player_blind_duration, map)
+          |> Map.put(:total_blind_duration, total_blind_duration)
+
+        true ->
+          flashbang_throw
+      end
+
+    flashbang_detonate = %{
+      flashbang_detonate
+      | fields: Map.put(flashbang_detonate.fields, "flashbang_throw", flashbang_throw)
+    }
+
+    flash_index =
+      Enum.find_index(attacker.grenade_throws, fn gt ->
+        gt.tick == flashbang_throw.tick
+      end)
+
+    attacker = %{
+      attacker
+      | grenade_throws: List.replace_at(attacker.grenade_throws, flash_index, flashbang_throw)
+    }
+
+    {flashbang_detonate, event_index, attacker, attacker_index}
+  end
+
   defp create_player_round_records(players, round_num) do
     Enum.map(players, fn player_event ->
       [name, id] = process_player_field(player_event)
@@ -408,7 +504,14 @@ defmodule ResultsParser.DumpParser do
   end
 
   defp do_process_player_field(fields, field) do
-    [name, id_field] = Map.get(fields, field) |> String.split(" ")
+    [head | tail] = Map.get(fields, field) |> String.split(" ") |> Enum.reverse()
+    id_field = head
+
+    name =
+      case length(tail) do
+        1 -> Enum.at(tail, 0)
+        _ -> Enum.join(tail, " ")
+      end
 
     id =
       id_field
@@ -445,30 +548,28 @@ defmodule ResultsParser.DumpParser do
         {acc, nil}
 
       acc != nil ->
-        fields =
-          line |> String.trim_trailing("\n") |> String.split(": ")
-          |> Enum.map(fn str ->
-            str |> String.trim_trailing(" ") |> String.trim_leading(" ")
-          end)
+        [head | tail] = line |> String.trim_trailing("\n") |> String.split(": ")
+        key = head |> String.trim_leading(" ")
 
-        fields =
-          if Map.has_key?(acc.fields, Enum.at(fields, 0)) do
-            new_key = Enum.at(fields, 0) <> "_2"
-
-            new_key =
-              if Map.has_key?(acc.fields, new_key) do
-                Enum.at(fields, 0) <> "_3"
-              else
-                new_key
-              end
-
-            fields = List.delete_at(fields, 0)
-            List.insert_at(fields, 0, new_key)
-          else
-            fields
+        value =
+          case length(tail) do
+            1 -> Enum.at(tail, 0) |> String.trim_trailing(" ") |> String.trim_leading(" ")
+            _ -> Enum.join(tail, " ") |> String.trim_trailing(" ") |> String.trim_leading(" ")
           end
 
-        new_fields = Map.put(acc.fields, Enum.at(fields, 0), Enum.at(fields, 1))
+        key =
+          cond do
+            Map.has_key?(acc.fields, key <> "_2") ->
+              key <> "_3"
+
+            Map.has_key?(acc.fields, key) ->
+              key <> "_2"
+
+            true ->
+              key
+          end
+
+        new_fields = Map.put(acc.fields, key, value)
         {nil, %{acc | fields: new_fields}}
 
       true ->

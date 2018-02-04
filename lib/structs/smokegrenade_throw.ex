@@ -6,6 +6,7 @@ defmodule SmokegrenadeThrow do
     :round,
     :origin,
     :facing,
-    :location
+    :location,
+    detonated: false
   ]
 end

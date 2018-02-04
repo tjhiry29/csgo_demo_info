@@ -8,6 +8,7 @@ defmodule HegrenadeThrow do
     :facing,
     :location,
     total_damage_dealt: 0,
-    player_damage_dealt: %{}
+    player_damage_dealt: %{},
+    detonated: false
   ]
 end

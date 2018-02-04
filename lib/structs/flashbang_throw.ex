@@ -9,6 +9,7 @@ defmodule FlashbangThrow do
     :location,
     player_blind_duration: %{},
     total_blind_duration: 0,
-    flash_assist: false
+    flash_assist: false,
+    detonated: false
   ]
 end
