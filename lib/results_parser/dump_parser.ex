@@ -161,7 +161,7 @@ defmodule ResultsParser.DumpParser do
       "weapon_fire" ->
         cond do
           Enum.member?(@grenades, Map.get(event.fields, "weapon")) ->
-            grenade_throw = process_weapon_fire_event(event)
+            grenade_throw = process_grenade_throw_event(event)
 
             case grenade_throw do
               nil ->
@@ -357,7 +357,7 @@ defmodule ResultsParser.DumpParser do
     end
   end
 
-  defp process_weapon_fire_event(event) do
+  defp process_grenade_throw_event(event) do
     [player_name, player_id] = process_player_field(event)
     tick = Map.get(event.fields, "tick") |> String.to_integer()
     round = Map.get(event.fields, "round_num") |> String.to_integer()
