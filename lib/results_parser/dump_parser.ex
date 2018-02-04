@@ -38,6 +38,7 @@ defmodule ResultsParser.DumpParser do
       tick_rate = get_tick_rate(server_info)
       tick_rate = round(1 / tick_rate)
 
+      # create events list
       result =
         dump_stream
         |> Enum.map(&String.trim_trailing(&1, "\n"))
@@ -46,6 +47,7 @@ defmodule ResultsParser.DumpParser do
       {list, _} = result
       list = list |> Enum.filter(fn x -> x != nil end)
 
+      # order the list of events.
       events_list =
         list
         |> Enum.filter(fn x ->
@@ -60,6 +62,7 @@ defmodule ResultsParser.DumpParser do
             e2.fields |> Map.get("tick") |> String.to_integer()
         end)
 
+      # process player spawn events to create list of players.
       players =
         list
         |> Enum.filter(fn x -> x.type == "player_spawn" end)
@@ -72,6 +75,8 @@ defmodule ResultsParser.DumpParser do
       first_half_players = Enum.slice(players, 0, 10)
       second_half_players = Enum.slice(players, 10, 10)
 
+      # process game events and assign them to players per round.
+      # We will process each round and events by round.
       players_map =
         events_list
         |> Enum.group_by(fn x -> Map.get(x.fields, "round_num") |> String.to_integer() end)
@@ -98,8 +103,8 @@ defmodule ResultsParser.DumpParser do
         end)
         |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
-      IO.inspect(adr)
-      # IO.inspect Map.get(players_map, 1)
+      # IO.inspect(adr)
+      IO.inspect Enum.at(Map.get(players_map, 29), 0)
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory 
                 or ensure the demo dump goes through as expected")
@@ -114,7 +119,7 @@ defmodule ResultsParser.DumpParser do
       end
       |> Enum.sort(fn p1, p2 -> p1.id < p2.id end)
 
-    {player_round_records, _} =
+    {player_round_records, tmp_events} =
       Enum.reduce(
         events,
         {player_round_records, []},
@@ -132,16 +137,11 @@ defmodule ResultsParser.DumpParser do
         {attacker, attacker_index, user, user_index} =
           process_player_hurt_event(event, player_round_records)
 
-        player_round_records = List.replace_at(player_round_records, user_index, user)
-
+        # 11 as fallback, which is an out of range index.
         player_round_records =
-          cond do
-            attacker != nil && attacker_index != nil ->
-              List.replace_at(player_round_records, attacker_index, attacker)
-
-            true ->
-              player_round_records
-          end
+          player_round_records
+          |> List.replace_at(user_index, user)
+          |> List.replace_at(attacker_index || 11, attacker)
 
         {player_round_records, tmp_events}
 
@@ -149,33 +149,61 @@ defmodule ResultsParser.DumpParser do
         {attacker, attacker_index, user, user_index, assister, assister_index} =
           process_player_death_event(event, player_round_records)
 
+        # 11 as fallback, which is an out of range index.
         player_round_records =
           player_round_records
           |> List.replace_at(user_index, user)
           |> List.replace_at(attacker_index, attacker)
-
-        player_round_records =
-          cond do
-            assister != nil ->
-              List.replace_at(player_round_records, assister_index, assister)
-
-            true ->
-              player_round_records
-          end
+          |> List.replace_at(assister_index || 11, assister)
 
         {player_round_records, tmp_events}
 
       "weapon_fire" ->
         cond do
           Enum.member?(@grenades, Map.get(event.fields, "weapon")) ->
-            process_weapon_fire_event(event)
-            {player_round_records, tmp_events}
+            grenade_throw = process_weapon_fire_event(event)
+
+            case grenade_throw do
+              nil ->
+                {player_round_records, tmp_events}
+
+              _ ->
+                user_index =
+                  Enum.find_index(player_round_records, fn p ->
+                    p.id == grenade_throw.player_id
+                  end)
+
+                user = Enum.at(player_round_records, user_index)
+                user = %{user | grenade_throws: [grenade_throw | user.grenade_throws]}
+                player_round_records = List.replace_at(player_round_records, user_index, user)
+                tmp_events = [grenade_throw | tmp_events]
+                {player_round_records, tmp_events}
+            end
 
           true ->
             {player_round_records, tmp_events}
         end
 
       "player_blind" ->
+        process_player_blind_event(event)
+        acc
+
+      "hegrenade_detonate" ->
+        acc
+
+      "flashbang_detonate" ->
+        acc
+
+      "smokegrenade_detonate" ->
+        acc
+
+      "smokegrenade_expired" ->
+        acc
+
+      "inferno_startburn" ->
+        acc
+
+      "inferno_expire" ->
         acc
 
       _ ->
@@ -298,11 +326,66 @@ defmodule ResultsParser.DumpParser do
   end
 
   defp process_weapon_fire_event(event) do
-    event
-  end
+    [player_name, player_id] = process_player_field(event)
+    tick = Map.get(event.fields, "tick")
+    round = Map.get(event.fields, "round_num")
+    origin = Map.get(event.fields, "position")
+    facing = Map.get(event.fields, "facing")
 
-  defp process_player_blind_event(event) do
-    event
+    case Map.get(event.fields, "weapon") do
+      "weapon_incgrenade" ->
+        %MolotovThrow{
+          player_name: player_name,
+          player_id: player_id,
+          round: round,
+          tick: tick,
+          origin: origin,
+          facing: facing
+        }
+
+      "weapon_molotov" ->
+        %MolotovThrow{
+          player_name: player_name,
+          player_id: player_id,
+          round: round,
+          tick: tick,
+          origin: origin,
+          facing: facing
+        }
+
+      "weapon_flashbang" ->
+        %FlashbangThrow{
+          player_name: player_name,
+          player_id: player_id,
+          round: round,
+          tick: tick,
+          origin: origin,
+          facing: facing
+        }
+
+      "weapon_hegrenade" ->
+        %HegrenadeThrow{
+          player_name: player_name,
+          player_id: player_id,
+          round: round,
+          tick: tick,
+          origin: origin,
+          facing: facing
+        }
+
+      "weapon_smokegrenade" ->
+        %SmokegrenadeThrow{
+          player_name: player_name,
+          player_id: player_id,
+          round: round,
+          tick: tick,
+          origin: origin,
+          facing: facing
+        }
+
+      _ ->
+        nil
+    end
   end
 
   defp create_player_round_records(players, round_num) do
@@ -314,8 +397,18 @@ defmodule ResultsParser.DumpParser do
     end)
   end
 
-  defp process_player_field(event, field \\ "userid") do
-    [name, id_field] = Map.get(event.fields, field) |> String.split(" ")
+  defp process_player_field(event, fields \\ "userid")
+
+  defp process_player_field(%GameEvent{} = event, field) do
+    do_process_player_field(event.fields, field)
+  end
+
+  defp process_player_field(fields, field) do
+    do_process_player_field(fields, field)
+  end
+
+  defp do_process_player_field(fields, field) do
+    [name, id_field] = Map.get(fields, field) |> String.split(" ")
 
     id =
       id_field

@@ -5,9 +5,9 @@ defmodule MolotovThrow do
     :tick,
     :round,
     :origin,
+    :facing,
     :location,
     total_damage_dealt: 0,
-    players_damaged: [],
-    player_damage_dealt: []
+    player_damage_dealt: %{}
   ]
 end

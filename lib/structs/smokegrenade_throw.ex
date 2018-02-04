@@ -5,6 +5,7 @@ defmodule SmokegrenadeThrow do
     :tick,
     :round,
     :origin,
+    :facing,
     :location
   ]
 end
