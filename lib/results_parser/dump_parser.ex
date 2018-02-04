@@ -203,7 +203,7 @@ defmodule ResultsParser.DumpParser do
           tmp_events
           |> Enum.find_index(fn e ->
             cond do
-              Map.has_key?(e, :detonated) && Map.has_key?(e, :flash_assist) &&
+              FlashbangThrow.is_flashbang_throw?(e) &&
                 e.detonated == false && e.player_id == id ->
                 true
 
@@ -428,7 +428,7 @@ defmodule ResultsParser.DumpParser do
     event_index =
       Enum.find_index(tmp_events, fn e ->
         cond do
-          Map.has_key?(e, :type) && e.type == "flashbang_detonate" &&
+          GameEvent.is_game_event?(e) && e.type == "flashbang_detonate" &&
             Map.get(e.fields, "tick") == Map.get(event.fields, "tick") &&
               Map.get(e.fields, "flashbang_throw").player_id == attacker_id ->
             true

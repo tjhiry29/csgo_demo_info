@@ -12,4 +12,12 @@ defmodule FlashbangThrow do
     flash_assist: false,
     detonated: false
   ]
+
+  def is_flashbang_throw?(%FlashbangThrow{}) do
+      true
+  end
+
+  def is_flashbang_throw?(_) do
+      false
+  end
 end
