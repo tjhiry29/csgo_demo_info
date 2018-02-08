@@ -14,10 +14,10 @@ defmodule FlashbangThrow do
   ]
 
   def is_flashbang_throw(%FlashbangThrow{}) do
-      true
+    true
   end
 
   def is_flashbang_throw(_) do
-      false
+    false
   end
 end
