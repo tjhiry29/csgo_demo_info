@@ -11,4 +11,12 @@ defmodule HegrenadeThrow do
     player_damage_dealt: %{},
     detonated: false
   ]
+
+  def is_hegrenade_throw(%HegrenadeThrow{} = _) do
+    true
+  end
+
+  def is_hegrenade_throw(_) do
+    false
+  end
 end

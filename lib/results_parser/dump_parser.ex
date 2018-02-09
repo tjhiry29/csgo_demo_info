@@ -39,12 +39,11 @@ defmodule ResultsParser.DumpParser do
       tick_rate = round(1 / tick_rate)
 
       # create events list
-      result =
+      {list, _} =
         dump_stream
         |> Enum.map(&String.trim_trailing(&1, "\n"))
         |> Enum.map_reduce(nil, &parse_dump_line(&1, &2))
 
-      {list, _} = result
       list = list |> Enum.filter(fn x -> x != nil end)
 
       # order the list of events.
@@ -104,7 +103,7 @@ defmodule ResultsParser.DumpParser do
         |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
       # IO.inspect(adr)
-      IO.inspect(Enum.at(Map.get(players_map, 29), 0))
+      IO.inspect(Map.get(players_map, 29))
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory 
                 or ensure the demo dump goes through as expected")
@@ -142,6 +141,28 @@ defmodule ResultsParser.DumpParser do
           player_round_records
           |> List.replace_at(user_index, user)
           |> List.replace_at(attacker_index || 11, attacker)
+
+        {player_round_records, tmp_events} =
+          case Map.get(event.fields, "weapon") do
+            "hegrenade" ->
+              {grenade_detonate, event_index, attacker, attacker_index} =
+                process_grenade_hit_event(event, player_round_records, tmp_events)
+
+              case grenade_detonate do
+                nil ->
+                  {player_round_records, tmp_events}
+
+                _ ->
+                  {List.replace_at(player_round_records, attacker_index, attacker),
+                   List.replace_at(tmp_events, event_index, grenade_detonate)}
+              end
+
+            "inferno" ->
+              {player_round_records, tmp_events}
+
+            _ ->
+              {player_round_records, tmp_events}
+          end
 
         {player_round_records, tmp_events}
 
@@ -194,7 +215,36 @@ defmodule ResultsParser.DumpParser do
         {player_round_records, tmp_events}
 
       "hegrenade_detonate" ->
-        acc
+        {user, user_index, id} = find_player(event, player_round_records)
+
+        event_index =
+          tmp_events
+          |> Enum.find_index(fn e ->
+            cond do
+              HegrenadeThrow.is_hegrenade_throw(e) && e.detonated == false && e.player_id == id ->
+                true
+
+              true ->
+                false
+            end
+          end)
+
+        location = get_location(event)
+
+        hegrenade_throw =
+          tmp_events
+          |> Enum.at(event_index)
+          |> Map.put(:detonated, true)
+          |> Map.put(:location, location)
+
+        event = %{event | fields: Map.put(event.fields, "hegrenade_throw", hegrenade_throw)}
+
+        tmp_events =
+          tmp_events
+          |> List.delete_at(event_index)
+          |> List.insert_at(0, event)
+
+        {player_round_records, tmp_events}
 
       "flashbang_detonate" ->
         {user, user_index, id} = find_player(event, player_round_records)
@@ -203,8 +253,7 @@ defmodule ResultsParser.DumpParser do
           tmp_events
           |> Enum.find_index(fn e ->
             cond do
-              FlashbangThrow.is_flashbang_throw(e) &&
-                e.detonated == false && e.player_id == id ->
+              FlashbangThrow.is_flashbang_throw(e) && e.detonated == false && e.player_id == id ->
                 true
 
               true ->
@@ -212,10 +261,7 @@ defmodule ResultsParser.DumpParser do
             end
           end)
 
-        x = Map.get(event.fields, "x")
-        y = Map.get(event.fields, "y")
-        z = Map.get(event.fields, "z")
-        location = Enum.join([x, y, z], ", ")
+        location = get_location(event)
 
         flashbang_throw =
           tmp_events
@@ -228,7 +274,8 @@ defmodule ResultsParser.DumpParser do
         tmp_events =
           tmp_events
           |> List.delete_at(event_index)
-          |> List.insert_at(0, event)
+
+        tmp_events = [event | tmp_events]
 
         {player_round_records, tmp_events}
 
@@ -247,6 +294,16 @@ defmodule ResultsParser.DumpParser do
       _ ->
         acc
     end
+  end
+
+  defp get_location(event) do
+    event
+    |> get_xyz()
+    |> Enum.join(", ")
+  end
+
+  defp get_xyz(event) do
+    [Map.get(event.fields, "x"), Map.get(event.fields, "y"), Map.get(event.fields, "z")]
   end
 
   defp find_player(event, player_round_records, field \\ "userid") do
@@ -417,6 +474,76 @@ defmodule ResultsParser.DumpParser do
 
       _ ->
         nil
+    end
+  end
+
+  defp process_grenade_hit_event(event, player_round_records, tmp_events) do
+    {user, _, user_id} = find_player(event, player_round_records)
+
+    {attacker, attacker_index, attacker_id} = find_player(event, player_round_records, "attacker")
+
+    event_index =
+      Enum.find_index(tmp_events, fn e ->
+        cond do
+          GameEvent.is_game_event(e) && e.type == "hegrenade_detonate" &&
+            Map.get(e.fields, "hegrenade_throw").player_id == attacker_id &&
+              Map.get(e.fields, "dmg_health") != "1" ->
+            true
+
+          true ->
+            false
+        end
+      end)
+
+    cond do
+      event_index != nil ->
+        hegrenade_detonate = Enum.at(tmp_events, event_index)
+        hegrenade_throw = Map.get(hegrenade_detonate.fields, "hegrenade_throw")
+
+        hegrenade_throw =
+          cond do
+            user != nil ->
+              dmg = Map.get(event.fields, "dmg_health") |> String.to_integer()
+              total_dmg = hegrenade_throw.total_damage_dealt + dmg
+
+              {_, map} =
+                Map.get_and_update(hegrenade_throw.player_damage_dealt, user_id, fn val ->
+                  new_val =
+                    cond do
+                      val == nil -> dmg
+                      true -> dmg + val
+                    end
+
+                  {val, new_val}
+                end)
+
+              hegrenade_throw
+              |> Map.put(:player_damage_dealt, map)
+              |> Map.put(:total_damage_dealt, total_dmg)
+
+            true ->
+              hegrenade_throw
+          end
+
+        hegrenade_detonate = %{
+          hegrenade_detonate
+          | fields: Map.put(hegrenade_detonate.fields, "hegrenade_throw", hegrenade_throw)
+        }
+
+        nade_index =
+          Enum.find_index(attacker.grenade_throws, fn gt ->
+            gt.tick == hegrenade_throw.tick
+          end)
+
+        attacker = %{
+          attacker
+          | grenade_throws: List.replace_at(attacker.grenade_throws, nade_index, hegrenade_throw)
+        }
+
+        {hegrenade_detonate, event_index, attacker, attacker_index}
+
+      true ->
+        {nil, nil, nil, nil}
     end
   end
 
