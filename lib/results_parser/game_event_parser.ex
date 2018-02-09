@@ -1,59 +1,4 @@
 defmodule GameEventParser do
-  def replace_players(player_round_records, [i | remaining_indices], [p | remaining_players]) do
-    player_round_records
-    |> replace_player(i, p)
-    |> replace_players(remaining_indices, remaining_players)
-  end
-
-  def replace_players(player_round_records, [], []) do
-    player_round_records
-  end
-
-  # Player round records only has 10 items, so nil indices are replaced by an out of bounds index.
-  def replace_player(player_round_records, nil, player) do
-    List.replace_at(player_round_records, 11, player)
-  end
-
-  def replace_player(player_round_records, index, player) do
-    List.replace_at(player_round_records, index, player)
-  end
-
-  def get_location(event) do
-    event
-    |> get_xyz()
-    |> Enum.join(", ")
-  end
-
-  def get_xyz(event) do
-    [Map.get(event.fields, "x"), Map.get(event.fields, "y"), Map.get(event.fields, "z")]
-  end
-
-  def find_attacker(event, player_round_records) do
-    case Map.get(event.fields, "attacker") do
-      "0" ->
-        {nil, nil, nil}
-
-      _ ->
-        find_player(event, player_round_records, "attacker")
-    end
-  end
-
-  def find_assister(event, player_round_records) do
-    case Map.get(event.fields, "attacker") do
-      "0" ->
-        {nil, nil, nil}
-
-      _ ->
-        find_player(event, player_round_records, "assister")
-    end
-  end
-
-  def find_player(event, player_round_records, field \\ "userid") do
-    [_, id] = process_player_field(event, field)
-    user_index = Enum.find_index(player_round_records, fn p -> p.id == id end)
-    {Enum.at(player_round_records, user_index || 11), user_index, id}
-  end
-
   def process_player_hurt_event({player_round_records, tmp_events}, event) do
     {user, user_index, id} = find_player(event, player_round_records)
     dmg_dealt = event.fields |> Map.get("dmg_health") |> String.to_integer()
@@ -72,34 +17,14 @@ defmodule GameEventParser do
           attacker
 
         true ->
-          update_attacker_damage_dealt(attacker, dmg_dealt, id)
+          PlayerRoundRecord.update_attacker_damage_dealt(attacker, dmg_dealt, id)
       end
 
     player_round_records =
       player_round_records
-      |> replace_players([user_index, attacker_index], [user, attacker])
+      |> PlayerRoundRecord.replace_players([user_index, attacker_index], [user, attacker])
 
     {player_round_records, tmp_events}
-  end
-
-  def update_attacker_damage_dealt(nil, _, _) do
-    nil
-  end
-
-  def update_attacker_damage_dealt(attacker, dmg_dealt, id) do
-    {_, map} =
-      Map.get_and_update(attacker.damage_dealt, id, fn val ->
-        new_val =
-          cond do
-            val == nil -> dmg_dealt
-            val + dmg_dealt > 100 -> 100
-            true -> val + dmg_dealt
-          end
-
-        {val, new_val}
-      end)
-
-    %{attacker | damage_dealt: map}
   end
 
   def process_player_death_event({player_round_records, tmp_events}, event) do
@@ -139,29 +64,20 @@ defmodule GameEventParser do
 
     player_round_records =
       player_round_records
-      |> replace_players([user_index, attacker_index, assister_index], [user, attacker, assister])
+      |> PlayerRoundRecord.replace_players([user_index, attacker_index, assister_index], [
+        user,
+        attacker,
+        assister
+      ])
 
     {player_round_records, tmp_events}
   end
 
-  def create_assist(nil, _, _, _) do
-    nil
-  end
-
-  def create_assist(assister, victim_name, round_num, tick) do
-    %Assist{
-      victim_name: victim_name,
-      assister_name: assister.name,
-      round: round_num,
-      tick: tick
-    }
-  end
-
   def process_grenade_throw_event(event) do
-    [player_name, player_id] = process_player_field(event)
+    [player_name, player_id] = GameEvent.process_player_field(event)
     {tick, round, origin, facing} = GameEvent.get_grenade_throw_info(event)
 
-    case Map.get(event.fields, "weapon") do
+    case GameEvent.get_weapon(event) do
       "weapon_incgrenade" ->
         %MolotovThrow{
           player_name: player_name,
@@ -349,8 +265,7 @@ defmodule GameEventParser do
     }
 
     player_round_records =
-      player_round_records
-      |> replace_player(attacker_index, attacker)
+      PlayerRoundRecord.replace_player(player_round_records, attacker_index, attacker)
 
     tmp_events =
       tmp_events
@@ -359,41 +274,49 @@ defmodule GameEventParser do
     {player_round_records, tmp_events}
   end
 
+  def find_attacker(event, player_round_records) do
+    case GameEvent.get_attacker(event) do
+      "0" ->
+        {nil, nil, nil}
+
+      _ ->
+        find_player(event, player_round_records, "attacker")
+    end
+  end
+
+  def find_assister(event, player_round_records) do
+    case GameEvent.get_attacker(event) do
+      "0" ->
+        {nil, nil, nil}
+
+      _ ->
+        find_player(event, player_round_records, "assister")
+    end
+  end
+
+  def find_player(event, player_round_records, field \\ "userid") do
+    [_, id] = GameEvent.process_player_field(event, field)
+    user_index = Enum.find_index(player_round_records, fn p -> p.id == id end)
+    {Enum.at(player_round_records, user_index || 11), user_index, id}
+  end
+
+  def create_assist(nil, _, _, _), do: nil
+
+  def create_assist(assister, victim_name, round_num, tick) do
+    %Assist{
+      victim_name: victim_name,
+      assister_name: assister.name,
+      round: round_num,
+      tick: tick
+    }
+  end
+
   def create_player_round_records(players, round_num) do
     Enum.map(players, fn player_event ->
-      [name, id] = process_player_field(player_event)
+      [name, id] = GameEvent.process_player_field(player_event)
 
       team = Map.get(player_event.fields, "team")
       %PlayerRoundRecord{name: name, id: id, team: team, round: round_num}
     end)
-  end
-
-  def process_player_field(event, fields \\ "userid")
-
-  def process_player_field(%GameEvent{} = event, field) do
-    do_process_player_field(event.fields, field)
-  end
-
-  def process_player_field(fields, field) do
-    do_process_player_field(fields, field)
-  end
-
-  def do_process_player_field(fields, field) do
-    [head | tail] = Map.get(fields, field) |> String.split(" ") |> Enum.reverse()
-    id_field = head
-
-    name =
-      case length(tail) do
-        1 -> Enum.at(tail, 0)
-        _ -> Enum.join(tail, " ")
-      end
-
-    id =
-      id_field
-      |> String.trim_leading("(id:")
-      |> String.trim_trailing(")")
-      |> String.to_integer()
-
-    [name, id]
   end
 end

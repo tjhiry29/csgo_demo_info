@@ -209,7 +209,7 @@ defmodule ResultsParser.DumpParser do
             HegrenadeThrow.is_hegrenade_throw(e) && e.detonated == false && e.player_id == id
           end)
 
-        location = GameEventParser.get_location(event)
+        location = GameEvent.get_xyz_location(event)
 
         hegrenade_throw =
           tmp_events
@@ -235,7 +235,7 @@ defmodule ResultsParser.DumpParser do
             FlashbangThrow.is_flashbang_throw(e) && e.detonated == false && e.player_id == id
           end)
 
-        location = GameEventParser.get_location(event)
+        location = GameEvent.get_xyz_location(event)
 
         flashbang_throw =
           tmp_events
