@@ -103,18 +103,25 @@ defmodule GameEvent do
     {name, id}
   end
 
+  def update_events(events, nil, _), do: events
+  def update_events(events, event_index, nil), do: List.delete_at(events, event_index)
+
+  def update_events(events, event_index, event) do
+    events
+    |> List.delete_at(event_index)
+    |> List.insert_at(0, event)
+  end
+
   def find_hegrenade_detonate(tmp_events, attacker_id) do
     Enum.find_index(tmp_events, fn e ->
       is_game_event(e) && e.type == "hegrenade_detonate" &&
-        Map.get(e.fields, "hegrenade_throw").player_id == attacker_id &&
-        get_dmg_health(e) != 1
+        Map.get(e.fields, "hegrenade_throw").player_id == attacker_id && get_dmg_health(e) != 1
     end)
   end
 
   def find_flashbang_detonate(tmp_events, attacker_id, event) do
     Enum.find_index(tmp_events, fn e ->
-      is_game_event(e) && e.type == "flashbang_detonate" &&
-        get_tick(e) == get_tick(event) &&
+      is_game_event(e) && e.type == "flashbang_detonate" && get_tick(e) == get_tick(event) &&
         Map.get(e.fields, "flashbang_throw").player_id == attacker_id
     end)
   end

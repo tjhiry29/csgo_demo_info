@@ -164,83 +164,20 @@ defmodule ResultsParser.DumpParser do
       "weapon_fire" ->
         cond do
           Enum.member?(@grenades, Map.get(event.fields, "weapon")) ->
-            grenade_throw = GameEventParser.process_grenade_throw_event(event)
-
-            case grenade_throw do
-              nil ->
-                {player_round_records, tmp_events}
-
-              _ ->
-                user_index =
-                  Enum.find_index(player_round_records, fn p ->
-                    p.id == grenade_throw.player_id
-                  end)
-
-                user = Enum.at(player_round_records, user_index)
-                user = %{user | grenade_throws: [grenade_throw | user.grenade_throws]}
-                player_round_records = List.replace_at(player_round_records, user_index, user)
-                tmp_events = [grenade_throw | tmp_events]
-                {player_round_records, tmp_events}
-            end
+            GameEventParser.process_grenade_throw_event(acc, event)
 
           true ->
-            {player_round_records, tmp_events}
+            acc
         end
 
       "player_blind" ->
         GameEventParser.process_player_blind_event(acc, event)
 
       "hegrenade_detonate" ->
-        {_, _, id} = GameEventParser.find_player(event, player_round_records)
-
-        event_index =
-          tmp_events
-          |> Enum.find_index(fn e ->
-            HegrenadeThrow.is_hegrenade_throw(e) && e.detonated == false && e.player_id == id
-          end)
-
-        location = GameEvent.get_xyz_location(event)
-
-        hegrenade_throw =
-          tmp_events
-          |> Enum.at(event_index)
-          |> Map.put(:detonated, true)
-          |> Map.put(:location, location)
-
-        event = %{event | fields: Map.put(event.fields, "hegrenade_throw", hegrenade_throw)}
-
-        tmp_events =
-          tmp_events
-          |> List.delete_at(event_index)
-          |> List.insert_at(0, event)
-
-        {player_round_records, tmp_events}
+        GameEventParser.process_hegrenade_detonate_event(acc, event)
 
       "flashbang_detonate" ->
-        {_, _, id} = GameEventParser.find_player(event, player_round_records)
-
-        event_index =
-          tmp_events
-          |> Enum.find_index(fn e ->
-            FlashbangThrow.is_flashbang_throw(e) && e.detonated == false && e.player_id == id
-          end)
-
-        location = GameEvent.get_xyz_location(event)
-
-        flashbang_throw =
-          tmp_events
-          |> Enum.at(event_index)
-          |> Map.put(:detonated, true)
-          |> Map.put(:location, location)
-
-        event = %{event | fields: Map.put(event.fields, "flashbang_throw", flashbang_throw)}
-
-        tmp_events =
-          tmp_events
-          |> List.delete_at(event_index)
-          |> List.insert_at(0, event)
-
-        {player_round_records, tmp_events}
+        GameEventParser.process_flashbang_detonate_event(acc, event)
 
       "smokegrenade_detonate" ->
         acc
