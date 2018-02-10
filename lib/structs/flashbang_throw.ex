@@ -21,17 +21,20 @@ defmodule FlashbangThrow do
     false
   end
 
-  def update_blind_information(%FlashbangThrow{} = hegrenade_throw, nil, _) do
-    hegrenade_throw
+  def update_blind_information(%FlashbangThrow{} = flashbang_throw, nil, _) do
+    flashbang_throw
   end
 
-  def update_blind_information(%FlashbangThrow{} = flashbang_throw, user_id, event) do
+  def update_blind_information(%FlashbangThrow{} = flashbang_throw, user, %GameEvent{} = event) do
     duration = GameEvent.get_blind_duration(event)
 
     flashbang_throw
-    |> update_player_blind_duration(user_id, duration)
+    |> update_player_blind_duration(user.id, duration)
     |> update_total_blind_duration(duration)
   end
+
+  def update_blind_information(%FlashbangThrow{} = flashbang_throw, _, _), do: flashbang_throw
+  def update_blind_information(_, _, _), do: nil
 
   def update_total_blind_duration(%FlashbangThrow{} = flashbang_throw, duration) do
     %{flashbang_throw | total_blind_duration: flashbang_throw.total_blind_duration + duration}

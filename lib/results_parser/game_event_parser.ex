@@ -157,8 +157,8 @@ defmodule GameEventParser do
 
     flashbang_throw =
       flashbang_detonate.fields
-      |> Map.get(flashbang_detonate.fields, "flashbang_throw")
-      |> FlashbangThrow.update_blind_information(user_id, event)
+      |> Map.get("flashbang_throw")
+      |> FlashbangThrow.update_blind_information(user, event)
 
     flashbang_detonate = %{
       flashbang_detonate
@@ -188,7 +188,7 @@ defmodule GameEventParser do
   end
 
   def find_assister(event, player_round_records) do
-    case GameEvent.get_attacker(event) do
+    case GameEvent.get_assister(event) do
       "0" ->
         {nil, nil, nil}
 

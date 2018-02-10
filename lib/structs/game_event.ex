@@ -13,6 +13,7 @@ defmodule GameEvent do
     do: Map.get(event.fields, "round_num") |> String.to_integer()
 
   def get_attacker(%GameEvent{} = event), do: Map.get(event.fields, "attacker")
+  def get_assister(%GameEvent{} = event), do: Map.get(event.fields, "assister")
   def get_tick(%GameEvent{} = event), do: Map.get(event.fields, "tick") |> String.to_integer()
   def get_headshot(%GameEvent{} = event), do: Map.get(event.fields, "headshot") == "1"
   def get_weapon(%GameEvent{} = event), do: Map.get(event.fields, "weapon")
@@ -104,15 +105,15 @@ defmodule GameEvent do
 
   def find_hegrenade_detonate(tmp_events, attacker_id) do
     Enum.find_index(tmp_events, fn e ->
-      GameEvent.is_game_event(e) && e.type == "hegrenade_detonate" &&
+      is_game_event(e) && e.type == "hegrenade_detonate" &&
         Map.get(e.fields, "hegrenade_throw").player_id == attacker_id &&
-        GameEvent.get_dmg_health(e) != 1
+        get_dmg_health(e) != 1
     end)
   end
 
   def find_flashbang_detonate(tmp_events, attacker_id, event) do
     Enum.find_index(tmp_events, fn e ->
-      GameEvent.is_game_event(e) && e.type == "flashbang_detonate" &&
+      is_game_event(e) && e.type == "flashbang_detonate" &&
         get_tick(e) == get_tick(event) &&
         Map.get(e.fields, "flashbang_throw").player_id == attacker_id
     end)
