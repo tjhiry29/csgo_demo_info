@@ -83,24 +83,24 @@ defmodule ResultsParser.DumpParser do
           process_round(events, acc, round_num, first_half_players, second_half_players)
         end)
 
-      adr =
-        players_map
-        |> Enum.flat_map(fn {_, players} -> players end)
-        |> Enum.group_by(fn player -> player.id end)
-        |> Enum.map(fn {_, records} ->
-          total_dmg =
-            Enum.reduce(records, 0, fn record, a ->
-              dmg_round =
-                Enum.reduce(record.damage_dealt, 0, fn {_, v}, acc ->
-                  v + acc
-                end)
+      # adr =
+      #   players_map
+      #   |> Enum.flat_map(fn {_, players} -> players end)
+      #   |> Enum.group_by(fn player -> player.id end)
+      #   |> Enum.map(fn {_, records} ->
+      #     total_dmg =
+      #       Enum.reduce(records, 0, fn record, a ->
+      #         dmg_round =
+      #           Enum.reduce(record.damage_dealt, 0, fn {_, v}, acc ->
+      #             v + acc
+      #           end)
 
-              dmg_round + a
-            end)
+      #         dmg_round + a
+      #       end)
 
-          total_dmg / length(records)
-        end)
-        |> Enum.sort(fn d1, d2 -> d1 > d2 end)
+      #     total_dmg / length(records)
+      #   end)
+      #   |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
       # IO.inspect(adr)
       # IO.inspect(Map.get(players_map, 29))
@@ -143,17 +143,7 @@ defmodule ResultsParser.DumpParser do
         {player_round_records, tmp_events} =
           case Map.get(event.fields, "weapon") do
             "hegrenade" ->
-              {grenade_detonate, event_index, attacker, attacker_index} =
-                GameEventParser.process_grenade_hit_event(event, player_round_records, tmp_events)
-
-              case grenade_detonate do
-                nil ->
-                  {player_round_records, tmp_events}
-
-                _ ->
-                  {List.replace_at(player_round_records, attacker_index, attacker),
-                   List.replace_at(tmp_events, event_index, grenade_detonate)}
-              end
+              GameEventParser.process_grenade_hit_event(acc, event)
 
             "inferno" ->
               {player_round_records, tmp_events}

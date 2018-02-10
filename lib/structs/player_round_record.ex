@@ -25,13 +25,34 @@ defmodule PlayerRoundRecord do
     player_round_records
   end
 
-  # Player round records only has 10 items, so nil indices are replaced by an out of bounds index.
-  def replace_player(player_round_records, nil, player) do
-    List.replace_at(player_round_records, 11, player)
+  def replace_player(player_round_records, nil, _) do
+    player_round_records
   end
 
   def replace_player(player_round_records, index, player) do
     List.replace_at(player_round_records, index, player)
+  end
+
+  def replace_grenade_throw(player, grenade_throw) do
+    index = find_grenade_index(player, grenade_throw.tick)
+    replace_grenade_throw_at(player, index, grenade_throw)
+  end
+
+  def replace_grenade_throw_at(player, nil, _) do
+    player
+  end
+
+  def replace_grenade_throw_at(player, index, grenade_throw) do
+    %{
+      player
+      | grenade_throws: List.replace_at(player.grenade_throws, index, grenade_throw)
+    }
+  end
+
+  def find_grenade_index(player, tick) do
+    Enum.find_index(player.grenade_throws, fn gt ->
+      gt.tick == tick
+    end)
   end
 
   def update_attacker_damage_dealt(nil, _, _) do
