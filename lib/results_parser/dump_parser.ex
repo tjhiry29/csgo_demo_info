@@ -1,6 +1,7 @@
 defmodule ResultsParser.DumpParser do
   @num_server_info_lines 19
   @tick_interval_key "tick_interval:"
+  @map_name_key "map_name:"
   @filter_events [
     "round_announce_match_point",
     "decoy_started",
@@ -35,6 +36,8 @@ defmodule ResultsParser.DumpParser do
       {server_info, dump_stream} = Enum.split(stream, @num_server_info_lines)
       reciprocal = &(1 / &1)
       tick_rate = get_tick_rate(server_info) |> reciprocal.() |> round()
+      map_name = get_map_name(server_info)
+
       # create events list
       {list, _} =
         dump_stream
@@ -58,13 +61,11 @@ defmodule ResultsParser.DumpParser do
       player_event_filter =
         &(player_spawn.(&1) && (first_half_event.(&1) || second_half_event.(&1)))
 
-      players =
+      {first_half_players, second_half_players} =
         list
         |> Enum.filter(player_event_filter)
         |> Enum.take(20)
-
-      first_half_players = Enum.slice(players, 0, 10)
-      second_half_players = Enum.slice(players, 10, 10)
+        |> (&{Enum.slice(&1, 0, 10), Enum.slice(&1, 10, 10)}).()
 
       # process game events and assign them to players per round.
       # We will process each round and events by round.
@@ -180,6 +181,20 @@ defmodule ResultsParser.DumpParser do
       _ ->
         acc
     end
+  end
+
+  defp get_map_name(server_info) do
+    map_name_chunk = server_info
+      |> Enum.filter(fn e-> 
+        e |> String.split(" ") |> Enum.at(0) == @map_name_key
+      end)
+
+    map_name_chunk
+    |> Enum.at(0)
+    |> String.split(" ")
+    |> Enum.at(1)
+    |> String.trim_leading("\"")
+    |> String.trim_trailing("\"\n")
   end
 
   defp get_tick_rate(server_info) do
