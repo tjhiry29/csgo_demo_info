@@ -19,6 +19,9 @@ defmodule DemoInfoGo do
       "-gameevents" ->
         ResultsParser.DumpParser.parse_game_events(file_name)
 
+      "-skipdump" ->
+        nil
+
       _ ->
         IO.puts("Error: invalid type")
     end

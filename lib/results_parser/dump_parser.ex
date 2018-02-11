@@ -1,6 +1,4 @@
 defmodule ResultsParser.DumpParser do
-  alias GameEvent, as: GameEvent
-
   @num_server_info_lines 19
   @tick_interval_key "tick_interval:"
   @filter_events [
@@ -35,13 +33,12 @@ defmodule ResultsParser.DumpParser do
       # parse dump
       stream = File.stream!("results/#{file_name}.dump")
       {server_info, dump_stream} = Enum.split(stream, @num_server_info_lines)
-      tick_rate = get_tick_rate(server_info)
-      tick_rate = round(1 / tick_rate)
-
+      reciprocal = &(1 / &1)
+      tick_rate = get_tick_rate(server_info) |> reciprocal.() |> round()
       # create events list
       {list, _} =
         dump_stream
-        |> Enum.map(&String.trim_trailing(&1, "\n"))
+        |> Stream.map(&String.trim_trailing(&1, "\n"))
         |> Enum.map_reduce(nil, &parse_dump_line(&1, &2))
 
       list = list |> Enum.filter(fn x -> x != nil end)
@@ -52,23 +49,18 @@ defmodule ResultsParser.DumpParser do
         |> Enum.filter(fn x ->
           !Enum.member?(@filter_events, x.type)
         end)
-        |> Enum.sort(fn e1, e2 ->
-          e1.fields |> Map.get("round_num") |> String.to_integer() <
-            e2.fields |> Map.get("round_num") |> String.to_integer()
-        end)
-        |> Enum.sort(fn e1, e2 ->
-          e1.fields |> Map.get("tick") |> String.to_integer() <
-            e2.fields |> Map.get("tick") |> String.to_integer()
-        end)
 
       # process player spawn events to create list of players.
+      player_spawn = fn x -> x.type == "player_spawn" end
+      first_half_event = &(GameEvent.get_round(&1) == 1)
+      second_half_event = &(GameEvent.get_round(&1) == 16)
+
+      player_event_filter =
+        &(player_spawn.(&1) && (first_half_event.(&1) || second_half_event.(&1)))
+
       players =
         list
-        |> Enum.filter(fn x -> x.type == "player_spawn" end)
-        |> Enum.filter(fn x ->
-          Map.get(x.fields, "round_num") |> String.to_integer() == 1 ||
-            Map.get(x.fields, "round_num") |> String.to_integer() == 16
-        end)
+        |> Enum.filter(player_event_filter)
         |> Enum.take(20)
 
       first_half_players = Enum.slice(players, 0, 10)
@@ -125,23 +117,21 @@ defmodule ResultsParser.DumpParser do
       Enum.reduce(
         events,
         {player_round_records, []},
-        &process_round_game_events(&1, &2, round_num)
+        &process_round_game_events(&1, &2)
       )
 
     Map.put(acc, round_num, player_round_records)
   end
 
-  defp process_round_game_events(event, acc, round_num) do
+  defp process_round_game_events(event, acc) do
     {player_round_records, tmp_events} = acc
 
     case event.type do
       "player_hurt" ->
-        {player_round_records, tmp_events} =
-          acc
-          |> GameEventParser.process_player_hurt_event(event)
+        {player_round_records, tmp_events} = GameEventParser.process_player_hurt_event(acc, event)
 
         {player_round_records, tmp_events} =
-          case Map.get(event.fields, "weapon") do
+          case GameEvent.get_weapon(event) do
             "hegrenade" ->
               GameEventParser.process_grenade_hit_event(acc, event)
 
@@ -155,15 +145,11 @@ defmodule ResultsParser.DumpParser do
         {player_round_records, tmp_events}
 
       "player_death" ->
-        {player_round_records, tmp_events} =
-          acc
-          |> GameEventParser.process_player_death_event(event)
-
-        {player_round_records, tmp_events}
+        GameEventParser.process_player_death_event(acc, event)
 
       "weapon_fire" ->
         cond do
-          Enum.member?(@grenades, Map.get(event.fields, "weapon")) ->
+          Enum.member?(@grenades, GameEvent.get_weapon(event)) ->
             GameEventParser.process_grenade_throw_event(acc, event)
 
           true ->

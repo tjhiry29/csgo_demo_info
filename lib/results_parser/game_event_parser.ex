@@ -132,7 +132,7 @@ defmodule GameEventParser do
   end
 
   def process_hegrenade_detonate_event({player_round_records, tmp_events}, event) do
-    {_, _, id} = GameEventParser.find_player(event, player_round_records)
+    {_, _, id} = find_player(event, player_round_records)
 
     event_index =
       tmp_events
@@ -154,7 +154,7 @@ defmodule GameEventParser do
   end
 
   def process_flashbang_detonate_event({player_round_records, tmp_events}, event) do
-    {_, _, id} = GameEventParser.find_player(event, player_round_records)
+    {_, _, id} = find_player(event, player_round_records)
 
     event_index =
       tmp_events
@@ -244,13 +244,13 @@ defmodule GameEventParser do
     }
   end
 
-  def create_assist(_, _), do: nil
+  def create_assist(_, _, _), do: nil
 
   def create_player_round_records(players, round_num) do
     Enum.map(players, fn player_event ->
       {name, id} = GameEvent.process_player_field(player_event)
 
-      team = Map.get(player_event.fields, "team")
+      team = GameEvent.get_team(player_event)
       %PlayerRoundRecord{name: name, id: id, team: team, round: round_num}
     end)
   end

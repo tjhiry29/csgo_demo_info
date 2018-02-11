@@ -9,6 +9,10 @@ defmodule GameEvent do
     false
   end
 
+  def get(%GameEvent{} = event) do
+    fn field -> Map.get(event.fields, field) end
+  end
+
   def get_round(%GameEvent{} = event),
     do: Map.get(event.fields, "round_num") |> String.to_integer()
 
