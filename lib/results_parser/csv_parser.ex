@@ -20,8 +20,7 @@ defmodule ResultsParser.CSVParser do
       # parse csv
       stream = File.stream!("results/#{file_name}.csv")
       {server_info, csv_stream} = Enum.split(stream, @num_server_info_lines)
-      tick_rate = get_tick_rate(server_info)
-      tick_rate = round(1 / tick_rate)
+      tick_rate = server_info |> get_tick_rate |> (&(1 / &1)).() |> round()
 
       result =
         csv_stream
@@ -54,7 +53,7 @@ defmodule ResultsParser.CSVParser do
 
       IO.inspect(Map.get(trade_kills, 1))
     else
-      IO.puts("No such file results/#{file_name}.csv, please check the directory 
+      IO.puts("No such file results/#{file_name}.csv, please check the directory
                 or ensure the demo dump goes through as expected")
     end
   end

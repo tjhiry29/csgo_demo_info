@@ -12,6 +12,7 @@ defmodule Kill do
     :headshot,
     :victim_position,
     :attacker_position,
+    :map_name,
     trade: false,
     assist: nil,
     first_of_round: false

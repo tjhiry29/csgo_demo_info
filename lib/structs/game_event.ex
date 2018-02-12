@@ -13,16 +13,16 @@ defmodule GameEvent do
     fn field -> Map.get(event.fields, field) end
   end
 
-  def get_round(%GameEvent{} = event),
-    do: event.fields |> Map.get("round_num") |> String.to_integer()
+  def get_round(%GameEvent{fields: %{"round_num" => round_num}}),
+    do: round_num |> String.to_integer()
 
-  def get_attacker(%GameEvent{} = event), do: Map.get(event.fields, "attacker")
-  def get_assister(%GameEvent{} = event), do: Map.get(event.fields, "assister")
-  def get_tick(%GameEvent{} = event), do: event.fields |> Map.get("tick") |> String.to_integer()
-  def get_headshot(%GameEvent{} = event), do: Map.get(event.fields, "headshot") == "1"
-  def get_weapon(%GameEvent{} = event), do: Map.get(event.fields, "weapon")
-  def get_facing(%GameEvent{} = event), do: Map.get(event.fields, "facing")
-  def get_team(event), do: Map.get(event.fields, "team")
+  def get_attacker(%GameEvent{fields: %{"attacker" => attacker}}), do: attacker
+  def get_assister(%GameEvent{fields: %{"assister" => assister}}), do: assister
+  def get_tick(%GameEvent{fields: %{"tick" => tick}}), do: tick |> String.to_integer()
+  def get_headshot(%GameEvent{fields: %{"headshot" => headshot}}), do: headshot == "1"
+  def get_weapon(%GameEvent{fields: %{"weapon" => weapon}}), do: weapon
+  def get_facing(%GameEvent{fields: %{"facing" => facing}}), do: facing
+  def get_team(%GameEvent{fields: %{"team" => team}}), do: team
 
   def get_blind_duration(%GameEvent{fields: %{"blind_duration" => blind_duration}}),
     do: blind_duration |> String.to_float()
@@ -84,8 +84,8 @@ defmodule GameEvent do
 
   def process_player_field(event, fields \\ "userid")
 
-  def process_player_field(%GameEvent{} = event, field) do
-    do_process_player_field(event.fields, field)
+  def process_player_field(%GameEvent{fields: fields}, field) do
+    do_process_player_field(fields, field)
   end
 
   def process_player_field(fields, field) do

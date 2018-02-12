@@ -3,20 +3,8 @@ defmodule ResultsParser.DumpParser do
   @tick_interval_key "tick_interval:"
   @map_name_key "map_name:"
   @filter_events [
-    "round_announce_match_point",
-    "decoy_started",
-    "announce_phase_end",
-    "round_time_warning",
-    "round_announce_last_round_half",
-    "cs_round_final_beep",
-    "cs_pre_restart",
-    "cs_win_panel_round",
-    "player_team",
-    "cs_win_panel_round",
-    "decoy_detonate",
     "round_freeze_end",
     "round_poststart",
-    "hltv_fixed",
     "round_officially_ended",
     "round_announce_match_start",
     "round_end"
@@ -39,12 +27,14 @@ defmodule ResultsParser.DumpParser do
       map_name = get_map_name(server_info)
 
       # create events list
-      {list, _} =
+      list =
         dump_stream
         |> Stream.map(&String.trim_trailing(&1, "\n"))
-        |> Enum.map_reduce(nil, &parse_dump_line(&1, &2))
-
-      list = list |> Enum.filter(fn x -> x != nil end)
+        |> Stream.scan({nil, nil}, &parse_dump_line(&1, &2))
+        |> Enum.map(fn {e, _} ->
+          e
+        end)
+        |> Enum.filter(fn x -> x != nil end)
 
       # order the list of events.
       events_list =
@@ -76,6 +66,20 @@ defmodule ResultsParser.DumpParser do
           process_round(events, acc, round_num, first_half_players, second_half_players)
         end)
 
+      kills =
+        players_map
+        |> Enum.flat_map(fn {_, players} ->
+          players
+          |> Enum.flat_map(fn player -> player.kills end)
+        end)
+        |> Enum.map(fn k -> %{k | map_name: map_name} end)
+        |> Enum.group_by(fn k -> k.round end)
+        |> Enum.flat_map(fn {_, kills} ->
+          kills
+          |> Kill.find_first_kills()
+          |> Enum.map(&(Kill.find_trades(&1, tick_rate, kills)))
+        end)
+
       # adr =
       #   players_map
       #   |> Enum.flat_map(fn {_, players} -> players end)
@@ -95,10 +99,11 @@ defmodule ResultsParser.DumpParser do
       #   end)
       #   |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
+      # IO.inspect(kills)
       # IO.inspect(adr)
       # IO.inspect(Map.get(players_map, 29))
     else
-      IO.puts("No such file results/#{file_name}.dump, please check the directory 
+      IO.puts("No such file results/#{file_name}.dump, please check the directory
                 or ensure the demo dump goes through as expected")
     end
   end
@@ -214,6 +219,7 @@ defmodule ResultsParser.DumpParser do
   end
 
   defp parse_dump_line(line, acc) do
+    {_, acc} = acc
     cond do
       String.contains?(line, "{") ->
         event_type = line |> String.split(" ") |> Enum.at(0)
