@@ -215,7 +215,9 @@ defmodule GameEventParser do
 
     %Kill{
       attacker_name: attacker.name,
+      attacker_id: attacker.id,
       victim_name: user.name,
+      victim_id: user.id,
       weapon: weapon,
       round: round,
       tick: tick,

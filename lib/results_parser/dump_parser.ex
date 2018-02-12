@@ -35,7 +35,7 @@ defmodule ResultsParser.DumpParser do
       stream = File.stream!("results/#{file_name}.dump")
       {server_info, dump_stream} = Enum.split(stream, @num_server_info_lines)
       reciprocal = &(1 / &1)
-      tick_rate = get_tick_rate(server_info) |> reciprocal.() |> round()
+      tick_rate = server_info |> get_tick_rate() |> reciprocal.() |> round()
       map_name = get_map_name(server_info)
 
       # create events list
@@ -71,7 +71,7 @@ defmodule ResultsParser.DumpParser do
       # We will process each round and events by round.
       players_map =
         events_list
-        |> Enum.group_by(fn x -> Map.get(x.fields, "round_num") |> String.to_integer() end)
+        |> Enum.group_by(fn x -> x.fields |> Map.get("round_num") |> String.to_integer() end)
         |> Enum.reduce(%{}, fn {round_num, events}, acc ->
           process_round(events, acc, round_num, first_half_players, second_half_players)
         end)
@@ -184,8 +184,9 @@ defmodule ResultsParser.DumpParser do
   end
 
   defp get_map_name(server_info) do
-    map_name_chunk = server_info
-      |> Enum.filter(fn e-> 
+    map_name_chunk =
+      server_info
+      |> Enum.filter(fn e ->
         e |> String.split(" ") |> Enum.at(0) == @map_name_key
       end)
 
@@ -228,8 +229,8 @@ defmodule ResultsParser.DumpParser do
 
         value =
           case length(tail) do
-            1 -> Enum.at(tail, 0) |> String.trim_trailing(" ") |> String.trim_leading(" ")
-            _ -> Enum.join(tail, " ") |> String.trim_trailing(" ") |> String.trim_leading(" ")
+            1 -> tail |> Enum.at(0) |> String.trim_trailing(" ") |> String.trim_leading(" ")
+            _ -> tail |> Enum.join(" ") |> String.trim_trailing(" ") |> String.trim_leading(" ")
           end
 
         key =

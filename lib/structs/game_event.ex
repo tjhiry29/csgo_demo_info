@@ -14,11 +14,11 @@ defmodule GameEvent do
   end
 
   def get_round(%GameEvent{} = event),
-    do: Map.get(event.fields, "round_num") |> String.to_integer()
+    do: event.fields |> Map.get("round_num") |> String.to_integer()
 
   def get_attacker(%GameEvent{} = event), do: Map.get(event.fields, "attacker")
   def get_assister(%GameEvent{} = event), do: Map.get(event.fields, "assister")
-  def get_tick(%GameEvent{} = event), do: Map.get(event.fields, "tick") |> String.to_integer()
+  def get_tick(%GameEvent{} = event), do: event.fields |> Map.get("tick") |> String.to_integer()
   def get_headshot(%GameEvent{} = event), do: Map.get(event.fields, "headshot") == "1"
   def get_weapon(%GameEvent{} = event), do: Map.get(event.fields, "weapon")
   def get_facing(%GameEvent{} = event), do: Map.get(event.fields, "facing")
@@ -93,7 +93,7 @@ defmodule GameEvent do
   end
 
   defp do_process_player_field(fields, field) do
-    [head | tail] = Map.get(fields, field) |> String.split(" ") |> Enum.reverse()
+    [head | tail] = fields |> Map.get(field) |> String.split(" ") |> Enum.reverse()
     id_field = head
 
     name = Enum.join(tail, " ")

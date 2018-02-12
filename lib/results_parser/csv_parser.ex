@@ -11,12 +11,7 @@ defmodule ResultsParser.CSVParser do
   Then finds first kills of each round and finds trade kills
   Then maps the kills onto each player.
   """
-  alias Kill, as: Kill
-  alias Player, as: Player
-  alias Assist, as: Assist
 
-  # 5 seconds in the past
-  @trade_time_limit 5
   @num_server_info_lines 19
   @tick_interval_key "tick_interval:"
 
@@ -30,22 +25,20 @@ defmodule ResultsParser.CSVParser do
 
       result =
         csv_stream
-        |> Enum.map(&String.trim_trailing(&1, "\n"))
         |> Enum.reduce([[], []], &parse_csv_line(&1, &2))
 
       [kills, players] = result
 
       kills =
         kills
-        |> Enum.sort(fn k1, k2 -> k1.tick < k2.tick end)
         |> Enum.group_by(fn k -> k.round end)
-        |> Enum.map(fn {_, v} ->
-          kill = %{Enum.at(v, 0) | first_of_round: true}
-          v |> List.delete_at(0) |> List.insert_at(0, kill)
+        |> Enum.flat_map(fn {_, kills} ->
+          kills
+          |> Kill.find_first_kills()
+          |> Enum.map(fn k ->
+            Kill.find_trades(k, tick_rate, kills)
+          end)
         end)
-        |> List.flatten()
-
-      kills = Enum.map(kills, &find_trades(&1, tick_rate, kills))
 
       players =
         players
@@ -54,6 +47,12 @@ defmodule ResultsParser.CSVParser do
         |> Enum.filter(fn x -> x != nil end)
         |> Enum.map(&map_kills(&1, kills))
         |> Enum.sort(fn player1, player2 -> player1.id < player2.id end)
+
+      trade_kills =
+        kills
+        |> Enum.group_by(fn k -> k.round end)
+
+      IO.inspect(Map.get(trade_kills, 1))
     else
       IO.puts("No such file results/#{file_name}.csv, please check the directory 
                 or ensure the demo dump goes through as expected")
@@ -76,6 +75,7 @@ defmodule ResultsParser.CSVParser do
   end
 
   defp parse_csv_line(line, acc) do
+    line = String.trim_trailing(line, "\n")
     player_info = get_player_info(line)
     kill_info = get_kill_info(line)
     kills = acc |> Enum.at(0) |> List.insert_at(-1, kill_info)
@@ -127,7 +127,9 @@ defmodule ResultsParser.CSVParser do
 
     kill = %Kill{
       attacker_name: attacker.name,
+      attacker_id: attacker.id,
       victim_name: victim.name,
+      victim_id: victim.id,
       weapon: weapon,
       round: round,
       tick: tick,
@@ -151,24 +153,6 @@ defmodule ResultsParser.CSVParser do
       round: kill.round,
       tick: kill.tick
     }
-  end
-
-  defp find_trades(kill, tick_rate, kills) do
-    filtered_kills =
-      kills
-      |> Enum.filter(fn k ->
-        Range.new(k.tick - @trade_time_limit * tick_rate, k.tick)
-        |> Enum.member?(kill.tick)
-      end)
-      |> Enum.filter(fn k ->
-        k.attacker_name == kill.victim_name
-      end)
-
-    if Enum.at(filtered_kills, 0) != nil do
-      %{kill | trade: true}
-    else
-      kill
-    end
   end
 
   defp map_kills(player, kills) do
