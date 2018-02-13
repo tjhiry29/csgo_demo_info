@@ -16,11 +16,14 @@ defmodule GameEvent do
   def get_round(%GameEvent{fields: %{"round_num" => round_num}}),
     do: round_num |> String.to_integer()
 
+  # Occasionally there is no weapon.
+  def get_weapon(%GameEvent{} = event), do: Map.get(event.fields, "weapon")
+  def get_weapon(%GameEvent{fields: %{"weapon" => weapon}}) when is_bitstring(weapon), do: weapon
+
   def get_attacker(%GameEvent{fields: %{"attacker" => attacker}}), do: attacker
   def get_assister(%GameEvent{fields: %{"assister" => assister}}), do: assister
   def get_tick(%GameEvent{fields: %{"tick" => tick}}), do: tick |> String.to_integer()
   def get_headshot(%GameEvent{fields: %{"headshot" => headshot}}), do: headshot == "1"
-  def get_weapon(%GameEvent{fields: %{"weapon" => weapon}}), do: weapon
   def get_facing(%GameEvent{fields: %{"facing" => facing}}), do: facing
   def get_team(%GameEvent{fields: %{"team" => team}}), do: team
 

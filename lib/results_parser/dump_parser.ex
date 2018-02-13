@@ -66,19 +66,34 @@ defmodule ResultsParser.DumpParser do
           process_round(events, acc, round_num, first_half_players, second_half_players)
         end)
 
-      kills =
+      kills_by_round =
         players_map
         |> Enum.flat_map(fn {_, players} ->
-          players
-          |> Enum.flat_map(fn player -> player.kills end)
+          kills =
+            players
+            |> Enum.flat_map(fn player ->
+              player.kills
+            end)
+            |> Kill.find_first_kills()
+
+          Enum.map(kills, fn k ->
+            %{k | map_name: map_name} |> Kill.find_trades(tick_rate, kills)
+          end)
         end)
-        |> Enum.map(fn k -> %{k | map_name: map_name} end)
         |> Enum.group_by(fn k -> k.round end)
-        |> Enum.flat_map(fn {_, kills} ->
-          kills
-          |> Kill.find_first_kills()
-          |> Enum.map(&(Kill.find_trades(&1, tick_rate, kills)))
+
+      players_map =
+        players_map
+        |> Enum.map(fn {round_num, players} ->
+          players =
+            players
+            |> Enum.map(fn p ->
+              map_kills(p, Map.get(kills_by_round, round_num))
+            end)
+
+          {round_num, players}
         end)
+        |> Enum.group_by(fn {round_num, _} -> round_num end)
 
       # adr =
       #   players_map
@@ -101,7 +116,7 @@ defmodule ResultsParser.DumpParser do
 
       # IO.inspect(kills)
       # IO.inspect(adr)
-      # IO.inspect(Map.get(players_map, 29))
+      IO.inspect(players_map)
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory
                 or ensure the demo dump goes through as expected")
@@ -220,6 +235,7 @@ defmodule ResultsParser.DumpParser do
 
   defp parse_dump_line(line, acc) do
     {_, acc} = acc
+
     cond do
       String.contains?(line, "{") ->
         event_type = line |> String.split(" ") |> Enum.at(0)
@@ -257,5 +273,42 @@ defmodule ResultsParser.DumpParser do
       true ->
         {nil, acc}
     end
+  end
+
+  defp map_kills(player, kills) do
+    [player_kills, player_assists, player_deaths] =
+      Enum.reduce(kills, [[], [], []], fn kill, acc ->
+        k = if kill.attacker_name == player.name, do: kill
+
+        assist =
+          if kill.assist != nil && kill.assist.assister_name == player.name, do: kill.assist
+
+        death = if kill.victim_name == player.name, do: kill
+
+        kills =
+          if k != nil do
+            acc |> Enum.at(0) |> List.insert_at(-1, k)
+          else
+            Enum.at(acc, 0)
+          end
+
+        assists =
+          if assist != nil do
+            acc |> Enum.at(1) |> List.insert_at(-1, assist)
+          else
+            Enum.at(acc, 1)
+          end
+
+        deaths =
+          if death != nil do
+            acc |> Enum.at(2) |> List.insert_at(-1, death)
+          else
+            Enum.at(acc, 2)
+          end
+
+        [kills, assists, deaths]
+      end)
+
+    %{player | kills: player_kills, assists: player_assists, death: Enum.at(player_deaths, 0)}
   end
 end
