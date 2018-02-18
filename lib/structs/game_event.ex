@@ -23,6 +23,10 @@ defmodule GameEvent do
   def get_attacker(%GameEvent{fields: %{"attacker" => attacker}}), do: attacker
   def get_assister(%GameEvent{fields: %{"assister" => assister}}), do: assister
   def get_tick(%GameEvent{fields: %{"tick" => tick}}), do: tick |> String.to_integer()
+
+  def get_entityid(%GameEvent{fields: %{"entityid" => entityid}}),
+    do: entityid |> String.to_integer()
+
   def get_headshot(%GameEvent{fields: %{"headshot" => headshot}}), do: headshot == "1"
   def get_facing(%GameEvent{fields: %{"facing" => facing}}), do: facing
   def get_team(%GameEvent{fields: %{"team" => team}}), do: team
@@ -130,6 +134,13 @@ defmodule GameEvent do
     Enum.find_index(tmp_events, fn e ->
       is_game_event(e) && e.type == "flashbang_detonate" && get_tick(e) == get_tick(event) &&
         Map.get(e.fields, "flashbang_throw").player_id == attacker_id
+    end)
+  end
+
+  def find_inferno_startburn(tmp_events, attacker_id) do
+    Enum.find_index(tmp_events, fn e ->
+      is_game_event(e) && e.type == "inferno_startburn" &&
+        Map.get(e.fields, "molotov_throw").player_id == attacker_id && get_dmg_health(e) != 1
     end)
   end
 end

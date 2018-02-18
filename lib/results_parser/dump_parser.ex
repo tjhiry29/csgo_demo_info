@@ -116,7 +116,9 @@ defmodule ResultsParser.DumpParser do
 
       # IO.inspect(kills)
       # IO.inspect(adr)
-      IO.inspect(players_map)
+      # IO.inspect(players_map)
+      [{_, players} | _] = Map.get(players_map, 29)
+      IO.inspect(Enum.map(players, fn p -> p.grenade_throws end))
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory
                 or ensure the demo dump goes through as expected")
@@ -157,7 +159,7 @@ defmodule ResultsParser.DumpParser do
               GameEventParser.process_grenade_hit_event(acc, event)
 
             "inferno" ->
-              {player_round_records, tmp_events}
+              GameEventParser.process_inferno_hit_event(acc, event)
 
             _ ->
               {player_round_records, tmp_events}
@@ -187,16 +189,13 @@ defmodule ResultsParser.DumpParser do
         GameEventParser.process_flashbang_detonate_event(acc, event)
 
       "smokegrenade_detonate" ->
-        acc
-
-      "smokegrenade_expired" ->
-        acc
+        GameEventParser.process_smokegrenade_detonate_event(acc, event)
 
       "inferno_startburn" ->
-        acc
+        GameEventParser.process_inferno_startburn_event(acc, event)
 
       "inferno_expire" ->
-        acc
+        GameEventParser.process_inferno_expire_event(acc, event)
 
       _ ->
         acc

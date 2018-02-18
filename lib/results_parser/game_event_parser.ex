@@ -104,6 +104,40 @@ defmodule GameEventParser do
     end
   end
 
+  def process_inferno_hit_event({player_round_records, tmp_events}, event) do
+    {_, _, user_id} = find_player(event, player_round_records)
+    {attacker, attacker_index, attacker_id} = find_attacker(event, player_round_records)
+    event_index = GameEvent.find_inferno_startburn(tmp_events, attacker_id)
+
+    cond do
+      event_index != nil ->
+        inferno_startburn = Enum.at(tmp_events, event_index)
+
+        molotov_throw =
+          inferno_startburn.fields
+          |> Map.get("molotov_throw")
+          |> MolotovThrow.update_damage_dealt(user_id, event)
+
+        inferno_startburn = %{
+          inferno_startburn
+          | fields: Map.put(inferno_startburn.fields, "molotov_throw", molotov_throw)
+        }
+
+        attacker = PlayerRoundRecord.replace_grenade_throw(attacker, molotov_throw)
+
+        player_round_records =
+          player_round_records
+          |> PlayerRoundRecord.replace_player(attacker_index, attacker)
+
+        tmp_events = List.replace_at(tmp_events, event_index, inferno_startburn)
+
+        {player_round_records, tmp_events}
+
+      true ->
+        {player_round_records, tmp_events}
+    end
+  end
+
   def process_player_blind_event({player_round_records, tmp_events}, event) do
     {user, _, _} = find_player(event, player_round_records)
     {attacker, attacker_index, attacker_id} = find_attacker(event, player_round_records)
@@ -170,6 +204,102 @@ defmodule GameEventParser do
       |> grenade_detonated(location)
 
     event = %{event | fields: Map.put(event.fields, "flashbang_throw", flashbang_throw)}
+    tmp_events = GameEvent.update_events(tmp_events, event_index, event)
+
+    {player_round_records, tmp_events}
+  end
+
+  def process_smokegrenade_detonate_event({player_round_records, tmp_events}, event) do
+    {user, user_index, id} = find_player(event, player_round_records)
+
+    event_index =
+      tmp_events
+      |> Enum.find_index(fn e ->
+        SmokegrenadeThrow.is_smokegrenade_throw(e) && !e.detonated && e.player_id == id
+      end)
+
+    location = GameEvent.get_xyz_location(event)
+
+    smokegrenade_throw =
+      tmp_events
+      |> Enum.at(event_index)
+      |> grenade_detonated(location)
+
+    user = PlayerRoundRecord.replace_grenade_throw(user, smokegrenade_throw)
+
+    player_round_records =
+      PlayerRoundRecord.replace_player(player_round_records, user_index, user)
+
+    {player_round_records, tmp_events}
+  end
+
+  def process_inferno_startburn_event({player_round_records, tmp_events}, event) do
+    event_index =
+      tmp_events
+      |> Enum.find_index(fn e ->
+        MolotovThrow.is_molotov_throw(e) && !e.detonated && e.entityid == nil
+      end)
+
+    location = GameEvent.get_xyz_location(event)
+
+    molotov_throw =
+      tmp_events
+      |> Enum.at(event_index)
+      |> grenade_detonated(location)
+      |> Map.put(:entityid, GameEvent.get_entityid(event))
+
+    user_index =
+      player_round_records
+      |> Enum.find_index(fn p ->
+        p.id == molotov_throw.player_id
+      end)
+
+    user =
+      player_round_records
+      |> Enum.at(user_index)
+      |> PlayerRoundRecord.replace_grenade_throw(molotov_throw)
+
+    player_round_records =
+      PlayerRoundRecord.replace_player(player_round_records, user_index, user)
+
+    event = %{event | fields: Map.put(event.fields, "molotov_throw", molotov_throw)}
+    tmp_events = GameEvent.update_events(tmp_events, event_index, event)
+
+    {player_round_records, tmp_events}
+  end
+
+  def process_inferno_expire_event({player_round_records, tmp_events}, event) do
+    event_index =
+      tmp_events
+      |> Enum.find_index(fn e ->
+        GameEvent.is_game_event(e) && e.type == "inferno_startburn" &&
+          Map.get(e.fields, "molotov_throw").detonated &&
+          !Map.get(e.fields, "molotov_throw").expired &&
+          GameEvent.get_entityid(e) == GameEvent.get_entityid(event)
+      end)
+
+    molotov_throw =
+      tmp_events
+      |> Enum.at(event_index)
+      |> Map.get(:fields)
+      |> Map.get("molotov_throw")
+      |> Map.put(:expired, true)
+
+    user_index =
+      player_round_records
+      |> Enum.find_index(fn p ->
+        p.id == molotov_throw.player_id
+      end)
+
+    user =
+      player_round_records
+      |> Enum.at(user_index)
+      |> PlayerRoundRecord.replace_grenade_throw(molotov_throw)
+
+    player_round_records =
+      PlayerRoundRecord.replace_player(player_round_records, user_index, user)
+
+    event = %{event | fields: Map.put(event.fields, "molotov_throw", molotov_throw)}
     tmp_events = GameEvent.update_events(tmp_events, event_index, event)
 
     {player_round_records, tmp_events}
