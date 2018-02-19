@@ -1,6 +1,8 @@
 # Demoinfogo
 
-**TODO: Add description**
+TODO:
+  - Add description
+  - Create tests
 
 ## Installation
 
