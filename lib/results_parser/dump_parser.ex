@@ -159,10 +159,10 @@ defmodule ResultsParser.DumpParser do
         {player_round_records, tmp_events} =
           case GameEvent.get_weapon(event) do
             "hegrenade" ->
-              GameEventParser.process_grenade_hit_event(acc, event)
+              GameEventParser.process_grenade_hit_event({player_round_records, tmp_events}, event)
 
             "inferno" ->
-              GameEventParser.process_inferno_hit_event(acc, event)
+              GameEventParser.process_inferno_hit_event({player_round_records, tmp_events}, event)
 
             _ ->
               {player_round_records, tmp_events}
