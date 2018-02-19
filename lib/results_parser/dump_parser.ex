@@ -84,16 +84,21 @@ defmodule ResultsParser.DumpParser do
 
       players_map =
         players_map
-        |> Enum.map(fn {round_num, players} ->
+        |> Enum.flat_map(fn {round_num, players} ->
           players =
             players
             |> Enum.map(fn p ->
               map_kills(p, Map.get(kills_by_round, round_num))
             end)
-
-          {round_num, players}
         end)
-        |> Enum.group_by(fn {round_num, _} -> round_num end)
+        |> Enum.group_by(fn p -> p.id end)
+
+      adr =
+        players_map
+        |> Enum.map(fn {_, players} ->
+          Player.calculate_adr(players)
+        end)
+        |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
       # adr =
       #   players_map
@@ -115,10 +120,10 @@ defmodule ResultsParser.DumpParser do
       #   |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
       # IO.inspect(kills)
-      # IO.inspect(adr)
+      IO.inspect(adr)
       # IO.inspect(players_map)
-      [{_, players} | _] = Map.get(players_map, 29)
-      IO.inspect(Enum.map(players, fn p -> p.grenade_throws end))
+      # [{_, players} | _] = Map.get(players_map, 29)
+      # IO.inspect(Enum.map(players, fn p -> p.grenade_throws end))
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory
                 or ensure the demo dump goes through as expected")
@@ -147,8 +152,6 @@ defmodule ResultsParser.DumpParser do
   end
 
   defp process_round_game_events(event, acc) do
-    {player_round_records, tmp_events} = acc
-
     case event.type do
       "player_hurt" ->
         {player_round_records, tmp_events} = GameEventParser.process_player_hurt_event(acc, event)

@@ -29,6 +29,10 @@ defmodule PlayerRoundRecord do
     player_round_records
   end
 
+  def replace_player(player_round_records, _, nil) do
+    player_round_records
+  end
+
   def replace_player(player_round_records, index, player) do
     List.replace_at(player_round_records, index, player)
   end
@@ -64,6 +68,7 @@ defmodule PlayerRoundRecord do
       Map.get_and_update(attacker.damage_dealt, id, fn val ->
         new_val =
           cond do
+            dmg_dealt > 100 -> 100
             val == nil -> dmg_dealt
             val + dmg_dealt > 100 -> 100
             true -> val + dmg_dealt

@@ -40,7 +40,7 @@ defmodule GameEvent do
     do: dmg_health |> String.to_integer()
 
   def get_dmg_health(_) do
-    nil
+    0
   end
 
   def get_kill_info(%GameEvent{} = event) do
