@@ -90,6 +90,7 @@ defmodule ResultsParser.DumpParser do
             |> Enum.map(fn p ->
               map_kills(p, Map.get(kills_by_round, round_num))
             end)
+            |> Player.was_traded(tick_rate)
         end)
         |> Enum.group_by(fn p -> p.id end)
 
@@ -97,6 +98,14 @@ defmodule ResultsParser.DumpParser do
         players_map
         |> Enum.map(fn {_, players} ->
           Player.calculate_adr(players)
+        end)
+        |> Enum.sort(fn d1, d2 -> d1 > d2 end)
+
+      kast =
+        players_map
+        |> Enum.map(fn {_, players} ->
+          players
+          |> Player.calculate_kast()
         end)
         |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
@@ -120,7 +129,8 @@ defmodule ResultsParser.DumpParser do
       #   |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
       # IO.inspect(kills)
-      IO.inspect(adr)
+      # IO.inspect(adr)
+      # IO.inspect(kast)
       # IO.inspect(players_map)
       # [{_, players} | _] = Map.get(players_map, 29)
       # IO.inspect(Enum.map(players, fn p -> p.grenade_throws end))

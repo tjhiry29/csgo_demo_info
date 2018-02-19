@@ -27,7 +27,8 @@ defmodule Kill do
     filtered_kills =
       kills
       |> Enum.filter(fn k ->
-        k.tick < kill.tick && k.attacker_name == kill.victim_name
+        k.tick < kill.tick && k.tick > kill.tick - 5 * tick_rate &&
+          k.attacker_name == kill.victim_name
       end)
 
     if Enum.at(filtered_kills, 0) != nil do
