@@ -1,8 +1,7 @@
 # Demoinfogo
 
 TODO:
-  - Add description
-  - Create tests
+  - Create tests with some fixtures.
 
 ## Installation
 

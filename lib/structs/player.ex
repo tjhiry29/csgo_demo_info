@@ -8,11 +8,51 @@ defmodule Player do
     assist_count: 0,
     death_count: 0,
     headshot_count: 0,
+    first_kills: 0,
+    first_deaths: 0,
     kills: [],
     assists: [],
     deaths: [],
     grenade_throws: []
   ]
+
+  def aggregate_round_stats(player_round_records) do
+    adr = calculate_adr(player_round_records)
+    kast = calculate_kast(player_round_records)
+
+    {kills, assists, deaths, grenade_throws} =
+      Enum.reduce(player_round_records, {[], [], [], []}, fn player, acc ->
+        {kills, assists, deaths, grenade_throws} = acc
+        kills = kills ++ player.kills
+        assists = assists ++ player.assists
+        deaths = deaths ++ [player.death]
+        grenade_throws = grenade_throws ++ player.grenade_throws
+        {kills, assists, deaths, grenade_throws}
+      end)
+
+    deaths = Enum.filter(deaths, fn d -> d != nil end)
+    headshots = Enum.filter(kills, fn k -> k.headshot end)
+    first_kills = Enum.filter(kills, fn k -> k.first_of_round end)
+    first_deaths = Enum.filter(kills, fn k -> k.first_of_round end)
+    [player | _] = player_round_records
+
+    %Player{
+      name: player.name,
+      id: player.id,
+      adr: adr,
+      kast: kast,
+      kill_count: length(kills),
+      assist_count: length(assists),
+      death_count: length(deaths),
+      headshot_count: length(headshots),
+      first_kills: length(first_kills),
+      first_deaths: length(first_deaths),
+      kills: kills,
+      assists: assists,
+      deaths: deaths,
+      grenade_throws: grenade_throws
+    }
+  end
 
   def was_traded(player_round_records, tick_rate) do
     Enum.map(player_round_records, fn player ->

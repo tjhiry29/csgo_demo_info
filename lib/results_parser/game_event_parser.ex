@@ -176,15 +176,21 @@ defmodule GameEventParser do
 
     location = GameEvent.get_xyz_location(event)
 
-    hegrenade_throw =
-      tmp_events
-      |> Enum.at(event_index)
-      |> grenade_detonated(location)
+    case event_index do
+      nil ->
+        {player_round_records, tmp_events}
 
-    event = %{event | fields: Map.put(event.fields, "hegrenade_throw", hegrenade_throw)}
-    tmp_events = GameEvent.update_events(tmp_events, event_index, event)
+      _ ->
+        hegrenade_throw =
+          tmp_events
+          |> Enum.at(event_index)
+          |> grenade_detonated(location)
 
-    {player_round_records, tmp_events}
+        event = %{event | fields: Map.put(event.fields, "hegrenade_throw", hegrenade_throw)}
+        tmp_events = GameEvent.update_events(tmp_events, event_index, event)
+
+        {player_round_records, tmp_events}
+    end
   end
 
   def process_flashbang_detonate_event({player_round_records, tmp_events}, event) do

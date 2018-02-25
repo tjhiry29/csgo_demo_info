@@ -26,7 +26,7 @@ defmodule DemoInfoGo do
         IO.puts("Error: invalid type")
     end
 
-    Enum.each(types, match_type)
+    Enum.map(types, match_type)
   end
 
   def parse_demo(file_name, types) do

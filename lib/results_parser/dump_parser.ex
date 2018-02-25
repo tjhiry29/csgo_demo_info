@@ -82,7 +82,7 @@ defmodule ResultsParser.DumpParser do
         end)
         |> Enum.group_by(fn k -> k.round end)
 
-      players_map =
+      players_by_id =
         players_map
         |> Enum.flat_map(fn {round_num, players} ->
           players =
@@ -94,46 +94,14 @@ defmodule ResultsParser.DumpParser do
         end)
         |> Enum.group_by(fn p -> p.id end)
 
-      adr =
-        players_map
+      players =
+        players_by_id
         |> Enum.map(fn {_, players} ->
-          Player.calculate_adr(players)
+          Player.aggregate_round_stats(players)
         end)
-        |> Enum.sort(fn d1, d2 -> d1 > d2 end)
 
-      kast =
-        players_map
-        |> Enum.map(fn {_, players} ->
-          players
-          |> Player.calculate_kast()
-        end)
-        |> Enum.sort(fn d1, d2 -> d1 > d2 end)
-
-      # adr =
-      #   players_map
-      #   |> Enum.flat_map(fn {_, players} -> players end)
-      #   |> Enum.group_by(fn player -> player.id end)
-      #   |> Enum.map(fn {_, records} ->
-      #     total_dmg =
-      #       Enum.reduce(records, 0, fn record, a ->
-      #         dmg_round =
-      #           Enum.reduce(record.damage_dealt, 0, fn {_, v}, acc ->
-      #             v + acc
-      #           end)
-
-      #         dmg_round + a
-      #       end)
-
-      #     total_dmg / length(records)
-      #   end)
-      #   |> Enum.sort(fn d1, d2 -> d1 > d2 end)
-
-      # IO.inspect(kills)
-      # IO.inspect(adr)
-      # IO.inspect(kast)
-      # IO.inspect(players_map)
-      # [{_, players} | _] = Map.get(players_map, 29)
-      # IO.inspect(Enum.map(players, fn p -> p.grenade_throws end))
+      IO.inspect players
+      players
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory
                 or ensure the demo dump goes through as expected")
@@ -148,6 +116,11 @@ defmodule ResultsParser.DumpParser do
 
         round_num > 15 ->
           GameEventParser.create_player_round_records(second_half_players, round_num)
+
+        round_num > 30 ->
+          ot_player_spawns = Enum.filter(events, fn e -> e.type == "player_spawn" end)
+          GameEventParser.create_player_round_records(ot_player_spawns, round_num)
+
       end
       |> Enum.sort(fn p1, p2 -> p1.id < p2.id end)
 
