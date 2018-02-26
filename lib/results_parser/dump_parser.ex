@@ -327,6 +327,7 @@ defmodule ResultsParser.DumpParser do
 
         [kills, assists, deaths]
       end)
+
     player_kills = Enum.uniq_by(player_kills, fn k -> k.round && k.victim_id end)
     %{player | kills: player_kills, assists: player_assists, death: Enum.at(player_deaths, 0)}
   end
