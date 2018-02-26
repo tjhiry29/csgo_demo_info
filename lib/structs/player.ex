@@ -10,6 +10,8 @@ defmodule Player do
     headshot_count: 0,
     first_kills: 0,
     first_deaths: 0,
+    trade_kills: 0,
+    deaths_traded: 0,
     kills: [],
     assists: [],
     deaths: [],
@@ -20,20 +22,22 @@ defmodule Player do
     adr = calculate_adr(player_round_records)
     kast = calculate_kast(player_round_records)
 
-    {kills, assists, deaths, grenade_throws} =
-      Enum.reduce(player_round_records, {[], [], [], []}, fn player, acc ->
-        {kills, assists, deaths, grenade_throws} = acc
+    {kills, assists, deaths, grenade_throws, deaths_traded} =
+      Enum.reduce(player_round_records, {[], [], [], [], 0}, fn player, acc ->
+        {kills, assists, deaths, grenade_throws, deaths_traded} = acc
         kills = kills ++ player.kills
         assists = assists ++ player.assists
         deaths = deaths ++ [player.death]
         grenade_throws = grenade_throws ++ player.grenade_throws
-        {kills, assists, deaths, grenade_throws}
+        deaths_traded = if player.traded, do: deaths_traded + 1, else: deaths_traded
+        {kills, assists, deaths, grenade_throws, deaths_traded}
       end)
 
     deaths = Enum.filter(deaths, fn d -> d != nil end)
     headshots = Enum.filter(kills, fn k -> k.headshot end)
     first_kills = Enum.filter(kills, fn k -> k.first_of_round end)
     first_deaths = Enum.filter(deaths, fn k -> k.first_of_round end)
+    trade_kills = Enum.filter(kills, fn k -> k.trade end)
     [player | _] = player_round_records
 
     %Player{
@@ -47,6 +51,8 @@ defmodule Player do
       headshot_count: length(headshots),
       first_kills: length(first_kills),
       first_deaths: length(first_deaths),
+      trade_kills: length(trade_kills),
+      deaths_traded: deaths_traded,
       kills: kills,
       assists: assists,
       deaths: deaths,
