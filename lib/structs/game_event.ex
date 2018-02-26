@@ -30,6 +30,7 @@ defmodule GameEvent do
   def get_headshot(%GameEvent{fields: %{"headshot" => headshot}}), do: headshot == "1"
   def get_facing(%GameEvent{fields: %{"facing" => facing}}), do: facing
   def get_team(%GameEvent{fields: %{"team" => team}}), do: team
+  def get_team(_), do: nil
 
   def get_blind_duration(%GameEvent{fields: %{"blind_duration" => blind_duration}}),
     do: blind_duration |> String.to_float()

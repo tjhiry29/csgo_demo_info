@@ -226,17 +226,23 @@ defmodule GameEventParser do
 
     location = GameEvent.get_xyz_location(event)
 
-    smokegrenade_throw =
-      tmp_events
-      |> Enum.at(event_index)
-      |> grenade_detonated(location)
+    case event_index do
+      nil ->
+        {player_round_records, tmp_events}
 
-    user = PlayerRoundRecord.replace_grenade_throw(user, smokegrenade_throw)
+      _ ->
+        smokegrenade_throw =
+          tmp_events
+          |> Enum.at(event_index)
+          |> grenade_detonated(location)
 
-    player_round_records =
-      PlayerRoundRecord.replace_player(player_round_records, user_index, user)
+        user = PlayerRoundRecord.replace_grenade_throw(user, smokegrenade_throw)
 
-    {player_round_records, tmp_events}
+        player_round_records =
+          PlayerRoundRecord.replace_player(player_round_records, user_index, user)
+
+        {player_round_records, tmp_events}
+    end
   end
 
   def process_inferno_startburn_event({player_round_records, tmp_events}, event) do

@@ -36,26 +36,42 @@ defmodule ResultsParser.DumpParser do
         end)
         |> Enum.filter(fn x -> x != nil end)
 
+      match_start = Enum.find(list, fn x -> x.type == "round_announce_match_start" end)
+
       # order the list of events.
       events_list =
         list
         |> Enum.filter(fn x ->
-          !Enum.member?(@filter_events, x.type)
+          !Enum.member?(@filter_events, x.type) &&
+            GameEvent.get_tick(x) > GameEvent.get_tick(match_start)
         end)
 
       # process player spawn events to create list of players.
       player_spawn = fn x -> x.type == "player_spawn" end
-      first_half_event = &(GameEvent.get_round(&1) == 1)
+      first_half_event = &(GameEvent.get_round(&1) == 0)
       second_half_event = &(GameEvent.get_round(&1) == 16)
 
-      player_event_filter =
-        &(player_spawn.(&1) && (first_half_event.(&1) || second_half_event.(&1)))
-
-      {first_half_players, second_half_players} =
+      first_half_players =
         list
-        |> Enum.filter(player_event_filter)
-        |> Enum.take(20)
-        |> (&{Enum.slice(&1, 0, 10), Enum.slice(&1, 10, 10)}).()
+        |> Enum.filter(fn e ->
+          player_spawn.(e) && first_half_event.(e) && GameEvent.get_team(e) != nil
+        end)
+        |> Enum.reverse()
+        |> Enum.take(10)
+
+      second_half_players =
+        events_list
+        |> Enum.filter(fn e -> player_spawn.(e) && second_half_event.(e) end)
+        |> Enum.take(10)
+        |> Enum.map(fn e ->
+          if Map.get(e.fields, "team") == "CT" do
+            fields = Map.put(e.fields, "team", "T")
+            Map.put(e, :fields, fields)
+          else
+            fields = Map.put(e.fields, "team", "CT")
+            Map.put(e, :fields, fields)
+          end
+        end)
 
       # process game events and assign them to players per round.
       # We will process each round and events by round.
@@ -100,7 +116,7 @@ defmodule ResultsParser.DumpParser do
           Player.aggregate_round_stats(players)
         end)
 
-      IO.inspect players
+      IO.inspect(players)
       players
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory
@@ -109,18 +125,34 @@ defmodule ResultsParser.DumpParser do
   end
 
   defp process_round(events, acc, round_num, first_half_players, second_half_players) do
+    player_spawns = Enum.filter(events, fn e -> e.type == "player_spawn" end)
+
+    player_spawns =
+      if length(player_spawns) == 0 do
+        cond do
+          round_num <= 15 ->
+            first_half_players
+
+          round_num > 15 ->
+            second_half_players
+
+          true ->
+            first_half_players
+        end
+      else
+        player_spawns
+      end
+
     player_round_records =
       cond do
         round_num <= 15 ->
-          GameEventParser.create_player_round_records(first_half_players, round_num)
+          GameEventParser.create_player_round_records(player_spawns, round_num)
 
         round_num > 15 ->
-          GameEventParser.create_player_round_records(second_half_players, round_num)
+          GameEventParser.create_player_round_records(player_spawns, round_num)
 
         round_num > 30 ->
-          ot_player_spawns = Enum.filter(events, fn e -> e.type == "player_spawn" end)
-          GameEventParser.create_player_round_records(ot_player_spawns, round_num)
-
+          GameEventParser.create_player_round_records(player_spawns, round_num)
       end
       |> Enum.sort(fn p1, p2 -> p1.id < p2.id end)
 
