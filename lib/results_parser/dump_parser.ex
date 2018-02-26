@@ -90,6 +90,7 @@ defmodule ResultsParser.DumpParser do
             |> Enum.flat_map(fn player ->
               player.kills
             end)
+            |> Enum.sort(fn k1, k2 -> k1.tick < k2.tick end)
             |> Kill.find_first_kills()
 
           Enum.map(kills, fn k ->
@@ -126,6 +127,7 @@ defmodule ResultsParser.DumpParser do
 
   defp process_round(events, acc, round_num, first_half_players, second_half_players) do
     player_spawns = Enum.filter(events, fn e -> e.type == "player_spawn" end)
+    player_spawns = Enum.uniq_by(player_spawns, fn e -> Map.get(e.fields, "userid") end)
 
     player_spawns =
       if length(player_spawns) == 0 do
@@ -325,7 +327,7 @@ defmodule ResultsParser.DumpParser do
 
         [kills, assists, deaths]
       end)
-
+    player_kills = Enum.uniq_by(player_kills, fn k -> k.round && k.victim_id end)
     %{player | kills: player_kills, assists: player_assists, death: Enum.at(player_deaths, 0)}
   end
 end

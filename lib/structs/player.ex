@@ -33,7 +33,7 @@ defmodule Player do
     deaths = Enum.filter(deaths, fn d -> d != nil end)
     headshots = Enum.filter(kills, fn k -> k.headshot end)
     first_kills = Enum.filter(kills, fn k -> k.first_of_round end)
-    first_deaths = Enum.filter(kills, fn k -> k.first_of_round end)
+    first_deaths = Enum.filter(deaths, fn k -> k.first_of_round end)
     [player | _] = player_round_records
 
     %Player{
