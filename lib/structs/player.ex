@@ -71,10 +71,18 @@ defmodule Player do
           player_round_records
           |> Enum.find_index(fn p -> p.name == attacker_name end)
 
-        attacker = Enum.at(player_round_records, attacker_index)
-        attacker_dead = attacker.dead && attacker.death.tick <= player.death.tick + 5 * tick_rate
+        case attacker_index do
+          nil ->
+            player
 
-        %{player | traded: attacker_dead}
+          _ ->
+            attacker = Enum.at(player_round_records, attacker_index)
+
+            attacker_dead =
+              attacker.dead && attacker.death.tick <= player.death.tick + 5 * tick_rate
+
+            %{player | traded: attacker_dead}
+        end
       else
         player
       end

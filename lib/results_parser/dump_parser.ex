@@ -37,9 +37,10 @@ defmodule ResultsParser.DumpParser do
 
       match_start = Enum.find(list, fn x -> x.type == "round_announce_match_start" end)
 
-      player_infos = Enum.filter(list, fn x ->
-        x.type == "player_info" && Map.get(x.fields, "guid") != "BOT"
-      end)
+      player_infos =
+        Enum.filter(list, fn x ->
+          x.type == "player_info" && Map.get(x.fields, "guid") != "BOT"
+        end)
 
       # order the list of events.
       events_list =
@@ -153,9 +154,10 @@ defmodule ResultsParser.DumpParser do
         |> Enum.map(fn {teamnum, players} ->
           %Team{
             teamnum: teamnum,
-            players: players,
+            players: players
           }
         end)
+        |> Enum.filter(fn team -> team.teamnum == "2" || team.teamnum == "3" end)
 
       {teams, _} =
         events_by_round
@@ -164,9 +166,10 @@ defmodule ResultsParser.DumpParser do
           process_round_for_teams(events, teams, players, tick_rate)
         end)
 
+      IO.inspect player_infos
       # IO.inspect(teams)
       # IO.inspect players
-      players
+      {player_infos, players}
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory
                 or ensure the demo dump goes through as expected")

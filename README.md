@@ -1,6 +1,8 @@
 # Demoinfogo
 
 TODO:
+  - Add round breakdowns.
+  - Add clutch situation statistics
   - Create tests with some fixtures.
 
 ## Installation
