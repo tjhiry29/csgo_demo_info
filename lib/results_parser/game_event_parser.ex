@@ -3,6 +3,10 @@ defmodule GameEventParser do
     {user, user_index, id} = find_player(event, player_round_records)
     dmg_dealt = GameEvent.get_dmg_health(event)
 
+    if user == nil do
+      IO.inspect(player_round_records)
+    end
+
     health = user.health - dmg_dealt
     new_health = if health < 0, do: 0, else: health
 
@@ -395,7 +399,8 @@ defmodule GameEventParser do
       {name, id} = GameEvent.process_player_field(player_event)
 
       team = GameEvent.get_team(player_event)
-      %PlayerRoundRecord{name: name, id: id, team: team, round: round_num}
+      teamnum = GameEvent.get_teamnum(player_event)
+      %PlayerRoundRecord{name: name, id: id, team: team, round: round_num, teamnum: teamnum}
     end)
   end
 

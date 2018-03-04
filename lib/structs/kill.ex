@@ -18,6 +18,10 @@ defmodule Kill do
     first_of_round: false
   ]
 
+  def find_first_kills([]) do
+    []
+  end
+
   def find_first_kills([kill | kills]) do
     kill = %{kill | first_of_round: true}
     [kill | kills]

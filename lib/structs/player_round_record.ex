@@ -3,6 +3,7 @@ defmodule PlayerRoundRecord do
     :name,
     :id,
     :team,
+    :teamnum,
     :round,
     assists: [],
     damage_dealt: %{},

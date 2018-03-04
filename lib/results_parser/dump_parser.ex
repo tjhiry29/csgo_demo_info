@@ -1,13 +1,12 @@
 defmodule ResultsParser.DumpParser do
+  @round_time 115
+  @bomb_timer 40
   @num_server_info_lines 19
   @tick_interval_key "tick_interval:"
   @map_name_key "map_name:"
   @filter_events [
-    "round_freeze_end",
     "round_poststart",
-    "round_officially_ended",
-    "round_announce_match_start",
-    "round_end"
+    "round_officially_ended"
   ]
   @grenades [
     "weapon_flashbang",
@@ -38,13 +37,29 @@ defmodule ResultsParser.DumpParser do
 
       match_start = Enum.find(list, fn x -> x.type == "round_announce_match_start" end)
 
+      player_infos = Enum.filter(list, fn x ->
+        x.type == "player_info" && Map.get(x.fields, "guid") != "BOT"
+      end)
+
       # order the list of events.
       events_list =
         list
         |> Enum.filter(fn x ->
           !Enum.member?(@filter_events, x.type) &&
-            GameEvent.get_tick(x) > GameEvent.get_tick(match_start)
+            GameEvent.get_tick(x) >= GameEvent.get_tick(match_start)
         end)
+
+      [first_event | remainder] = events_list
+
+      first_event =
+        if GameEvent.get_round(first_event) == 0 do
+          fields = Map.put(first_event.fields, "round_num", "1")
+          Map.put(first_event, :fields, fields)
+        else
+          first_event
+        end
+
+      events_list = [first_event | remainder]
 
       # process player spawn events to create list of players.
       player_spawn = fn x -> x.type == "player_spawn" end
@@ -58,6 +73,18 @@ defmodule ResultsParser.DumpParser do
         end)
         |> Enum.reverse()
         |> Enum.take(10)
+
+      first_half_players =
+        if length(first_half_players) == 0 do
+          list
+          |> Enum.filter(fn e ->
+            player_spawn.(e) && GameEvent.get_round(e) == 2 && GameEvent.get_team(e) != nil
+          end)
+          |> Enum.uniq_by(fn e -> Map.get(e.fields, "userid") end)
+          |> Enum.take(10)
+        else
+          first_half_players
+        end
 
       second_half_players =
         events_list
@@ -75,9 +102,12 @@ defmodule ResultsParser.DumpParser do
 
       # process game events and assign them to players per round.
       # We will process each round and events by round.
-      players_map =
+      events_by_round =
         events_list
         |> Enum.group_by(fn x -> x.fields |> Map.get("round_num") |> String.to_integer() end)
+
+      players_map =
+        events_by_round
         |> Enum.reduce(%{}, fn {round_num, events}, acc ->
           process_round(events, acc, round_num, first_half_players, second_half_players)
         end)
@@ -117,7 +147,25 @@ defmodule ResultsParser.DumpParser do
           Player.aggregate_round_stats(players)
         end)
 
-      IO.inspect(players)
+      teams =
+        players
+        |> Enum.group_by(fn p -> p.teamnum end)
+        |> Enum.map(fn {teamnum, players} ->
+          %Team{
+            teamnum: teamnum,
+            players: players,
+          }
+        end)
+
+      {teams, _} =
+        events_by_round
+        |> Enum.reduce({teams, players}, fn {_, events}, acc ->
+          {teams, players} = acc
+          process_round_for_teams(events, teams, players, tick_rate)
+        end)
+
+      # IO.inspect(teams)
+      # IO.inspect players
       players
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory
@@ -330,5 +378,123 @@ defmodule ResultsParser.DumpParser do
 
     player_kills = Enum.uniq_by(player_kills, fn k -> k.round && k.victim_id end)
     %{player | kills: player_kills, assists: player_assists, death: Enum.at(player_deaths, 0)}
+  end
+
+  defp process_round_for_teams(events, teams, players, tick_rate) do
+    {teams, players, _, _} =
+      Enum.reduce(events, {teams, players, [], []}, fn event, acc ->
+        {teams, players, tmp_events, player_teams} = acc
+
+        case event.type do
+          "round_announce_match_start" ->
+            tmp_events = [event | tmp_events]
+            {teams, players, tmp_events, player_teams}
+
+          "round_freeze_end" ->
+            tmp_events = [event | tmp_events]
+            {teams, players, tmp_events, player_teams}
+
+          "player_team" ->
+            player_teams = [event | player_teams]
+            {_, id} = GameEvent.process_player_field(event)
+            player_index = Enum.find_index(players, fn p -> p.id == id end)
+            player = Enum.at(players, player_index)
+
+            teams =
+              if length(player_teams) == 10 do
+                [team1, team2] = teams
+                teamnum1 = team1.teamnum
+                teamnum2 = team2.teamnum
+                team1 = %{team1 | teamnum: teamnum2}
+                team2 = %{team2 | teamnum: teamnum1}
+                [team1, team2]
+              else
+                teams
+              end
+
+            player = %{player | teamnum: Map.get(event.fields, "team_2")}
+
+            players = List.replace_at(players, player_index, player)
+            {teams, players, tmp_events, player_teams}
+
+          "bomb_planted" ->
+            [round_start | _] = tmp_events
+            start_tick = GameEvent.get_tick(round_start)
+            current_tick = GameEvent.get_tick(event)
+            tick_difference = current_tick - start_tick
+            time_elapsed = tick_difference / tick_rate
+            time_in_round = @round_time - time_elapsed
+
+            fields =
+              Map.get(event, :fields) |> Map.put("time_elapsed", time_elapsed)
+              |> Map.put("time_in_round", time_in_round)
+
+            event = Map.put(event, :fields, fields)
+
+            {_, id} = GameEvent.process_player_field(event)
+            player = Enum.find(players, fn p -> p.id == id end)
+            team_index = Enum.find_index(teams, fn t -> t.teamnum == player.teamnum end)
+            team = Enum.at(teams, team_index)
+            team = %{team | bomb_plants: [event | team.bomb_plants]}
+            teams = List.replace_at(teams, team_index, team)
+            tmp_events = [event | tmp_events]
+            {teams, players, tmp_events, player_teams}
+
+          "bomb_defused" ->
+            [bomb_planted | _] = tmp_events
+            start_tick = GameEvent.get_tick(bomb_planted)
+            current_tick = GameEvent.get_tick(event)
+            tick_difference = current_tick - start_tick
+            time_elapsed = tick_difference / tick_rate
+            time_left = @bomb_timer - time_elapsed
+
+            fields =
+              Map.get(event, :fields) |> Map.put("time_elapsed", time_elapsed)
+              |> Map.put("time_left", time_left)
+
+            event = Map.put(event, :fields, fields)
+
+            {_, id} = GameEvent.process_player_field(event)
+            player = Enum.find(players, fn p -> p.id == id end)
+            team_index = Enum.find_index(teams, fn t -> t.teamnum == player.teamnum end)
+            team = Enum.at(teams, team_index)
+            team = %{team | bomb_defusals: [event | team.bomb_defusals]}
+            teams = List.replace_at(teams, team_index, team)
+            {teams, players, tmp_events, player_teams}
+
+          "round_end" ->
+            winner = GameEvent.get_winner(event)
+            [team1, team2] = teams
+
+            {winner, loser} =
+              cond do
+                team1.teamnum == winner ->
+                  {team1, team2}
+
+                true ->
+                  {team2, team1}
+              end
+
+            winner = %{
+              winner
+              | round_wins: [event | winner.round_wins],
+                rounds_won: winner.rounds_won + 1
+            }
+
+            loser = %{
+              loser
+              | round_losses: [event | loser.round_losses],
+                rounds_lost: loser.rounds_lost + 1
+            }
+
+            teams = [winner, loser]
+            {teams, players, tmp_events, player_teams}
+
+          _ ->
+            {teams, players, tmp_events, player_teams}
+        end
+      end)
+
+    {teams, players}
   end
 end

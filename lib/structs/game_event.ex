@@ -23,6 +23,7 @@ defmodule GameEvent do
   def get_attacker(%GameEvent{fields: %{"attacker" => attacker}}), do: attacker
   def get_assister(%GameEvent{fields: %{"assister" => assister}}), do: assister
   def get_tick(%GameEvent{fields: %{"tick" => tick}}), do: tick |> String.to_integer()
+  def get_tick(_), do: 0
 
   def get_entityid(%GameEvent{fields: %{"entityid" => entityid}}),
     do: entityid |> String.to_integer()
@@ -31,6 +32,10 @@ defmodule GameEvent do
   def get_facing(%GameEvent{fields: %{"facing" => facing}}), do: facing
   def get_team(%GameEvent{fields: %{"team" => team}}), do: team
   def get_team(_), do: nil
+  def get_teamnum(%GameEvent{fields: %{"teamnum" => teamnum}}), do: teamnum
+  def get_teamnum(_), do: nil
+  def get_winner(%GameEvent{fields: %{"winner" => winner}}), do: winner
+  def get_winner(_), do: nil
 
   def get_blind_duration(%GameEvent{fields: %{"blind_duration" => blind_duration}}),
     do: blind_duration |> String.to_float()
