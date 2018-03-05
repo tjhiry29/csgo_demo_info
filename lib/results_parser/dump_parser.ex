@@ -133,12 +133,11 @@ defmodule ResultsParser.DumpParser do
       players_by_id =
         players_map
         |> Enum.flat_map(fn {round_num, players} ->
-          players =
-            players
-            |> Enum.map(fn p ->
-              map_kills(p, Map.get(kills_by_round, round_num))
-            end)
-            |> Player.was_traded(tick_rate)
+          players
+          |> Enum.map(fn p ->
+            map_kills(p, Map.get(kills_by_round, round_num))
+          end)
+          |> Player.was_traded(tick_rate)
         end)
         |> Enum.group_by(fn p -> p.id end)
 
@@ -166,10 +165,10 @@ defmodule ResultsParser.DumpParser do
           process_round_for_teams(events, teams, players, tick_rate)
         end)
 
-      IO.inspect player_infos
-      # IO.inspect(teams)
+      IO.inspect(player_infos)
+      IO.inspect(teams)
       # IO.inspect players
-      {player_infos, players}
+      {player_infos, teams}
     else
       IO.puts("No such file results/#{file_name}.dump, please check the directory
                 or ensure the demo dump goes through as expected")

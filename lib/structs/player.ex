@@ -5,6 +5,7 @@ defmodule Player do
     :adr,
     :kast,
     :teamnum,
+    :rounds_played,
     kill_count: 0,
     assist_count: 0,
     death_count: 0,
@@ -58,7 +59,8 @@ defmodule Player do
       assists: assists,
       deaths: deaths,
       grenade_throws: grenade_throws,
-      teamnum: player.teamnum
+      teamnum: player.teamnum,
+      rounds_played: length(player_round_records)
     }
   end
 

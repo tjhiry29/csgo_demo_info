@@ -22,6 +22,8 @@ erl_crash.dump
 *.dem
 /**/*.dem
 /results
+.elixir_ls/
+.vscode
 
 *.sublime-project
 *.sublime-workspace
