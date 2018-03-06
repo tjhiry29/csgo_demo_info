@@ -16,10 +16,10 @@ defmodule ResultsParser.DumpParser do
     "weapon_incgrenade"
   ]
 
-  def parse_game_events(file_name) do
-    if File.exists?("results/#{file_name}.dump") do
+  def parse_game_events(file_name, path) do
+    if File.exists?("#{path}results/#{file_name}.dump") do
       # parse dump
-      stream = File.stream!("results/#{file_name}.dump")
+      stream = File.stream!("#{path}results/#{file_name}.dump")
       {server_info, dump_stream} = Enum.split(stream, @num_server_info_lines)
       reciprocal = &(1 / &1)
       tick_rate = server_info |> get_tick_rate() |> reciprocal.() |> round()

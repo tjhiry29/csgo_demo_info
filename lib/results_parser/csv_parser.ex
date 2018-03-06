@@ -15,10 +15,10 @@ defmodule ResultsParser.CSVParser do
   @num_server_info_lines 19
   @tick_interval_key "tick_interval:"
 
-  def parse_deaths_csv(file_name) do
-    if File.exists?("results/#{file_name}.csv") do
+  def parse_deaths_csv(file_name, path) do
+    if File.exists?("#{path}results/#{file_name}.csv") do
       # parse csv
-      stream = File.stream!("results/#{file_name}.csv")
+      stream = File.stream!("#{path}results/#{file_name}.csv")
       {server_info, csv_stream} = Enum.split(stream, @num_server_info_lines)
       tick_rate = server_info |> get_tick_rate |> (&(1 / &1)).() |> round()
 

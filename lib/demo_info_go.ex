@@ -11,13 +11,13 @@ defmodule DemoInfoGo do
 
   # parse resulting csv
   # parse resulting dump file
-  def parse_results(file_name, types) do
+  def parse_results(file_name, types, path \\ "") do
     match_type = fn
       "-deathscsv" ->
-        ResultsParser.CSVParser.parse_deaths_csv(file_name)
+        ResultsParser.CSVParser.parse_deaths_csv(file_name, path)
 
       "-gameevents" ->
-        ResultsParser.DumpParser.parse_game_events(file_name)
+        ResultsParser.DumpParser.parse_game_events(file_name, path)
 
       "-skipdump" ->
         nil
@@ -29,25 +29,22 @@ defmodule DemoInfoGo do
     Enum.map(types, match_type)
   end
 
-  def parse_demo(file_name, types) do
+  def parse_demo(file_name, types, path \\ "") do
     match_type = fn
-      "-deathscsv" -> deaths_csv(file_name)
-      "-gameevents" -> game_events(file_name)
+      "-deathscsv" -> deaths_csv(file_name, path)
+      "-gameevents" -> game_events(file_name, path)
       _ -> IO.puts("Error: invalid type")
     end
 
     Enum.each(types, match_type)
   end
 
-  defp game_events(file_name) do
-    {_, files} = File.ls()
-    IO.inspect(files)
-    IO.inspect(File.cwd())
-    if File.exists?("demoinfogo/#{file_name}.dem") do
+  defp game_events(file_name, path) do
+    if File.exists?("#{path}demoinfogo/#{file_name}.dem") do
       IO.puts("Starting game events dump")
-      File.touch!("results/#{file_name}.dump")
+      File.touch!("#{path}results/#{file_name}.dump")
 
-      game_events_command(file_name)
+      game_events_command(file_name, path)
 
       IO.puts("Please see the results directory for the following file #{file_name}.dump")
     else
@@ -57,12 +54,12 @@ defmodule DemoInfoGo do
     end
   end
 
-  defp deaths_csv(file_name) do
-    if File.exists?("demoinfogo/#{file_name}.dem") do
+  defp deaths_csv(file_name, path) do
+    if File.exists?("#{path}demoinfogo/#{file_name}.dem") do
       IO.puts("Starting deaths csv dump")
-      File.touch!("results/#{file_name}.csv")
+      File.touch!("#{path}results/#{file_name}.csv")
 
-      deaths_csv_command(file_name)
+      deaths_csv_command(file_name, path)
 
       IO.puts("Please see the results directory for the following file #{file_name}.csv")
     else
@@ -72,16 +69,16 @@ defmodule DemoInfoGo do
     end
   end
 
-  defp deaths_csv_command(file_name) do
+  defp deaths_csv_command(file_name, path) do
     cond do
-      File.exists?("demoinfogo/demoinfogo.exe") ->
+      File.exists?("#{path}demoinfogo/demoinfogo.exe") ->
         System.cmd(
           "./demoinfogo/demoinfogo.exe",
           ["-deathscsv", "-nowarmup", "demoinfogo/#{file_name}.dem"],
           into: File.stream!("results/#{file_name}.csv", [], :line)
         )
 
-      File.exists?("demoinfogo/demoinfogo") ->
+      File.exists?("#{path}demoinfogo/demoinfogo") ->
         System.cmd(
           "./demoinfogo/demoinfogo",
           ["-deathscsv", "-nowarmup", "demoinfogo/#{file_name}.dem"],
@@ -95,16 +92,16 @@ defmodule DemoInfoGo do
     end
   end
 
-  defp game_events_command(file_name) do
+  defp game_events_command(file_name, path) do
     cond do
-      File.exists?("demoinfogo/demoinfogo.exe") ->
+      File.exists?("#{path}demoinfogo/demoinfogo.exe") ->
         System.cmd(
           "./demoinfogo/demoinfogo.exe",
           ["-gameevents", "-extrainfo", "-nofootsteps", "demoinfogo/#{file_name}.dem"],
           into: File.stream!("results/#{file_name}.dump", [], :line)
         )
 
-      File.exists?("demoinfogo/demoinfogo") ->
+      File.exists?("#{path}demoinfogo/demoinfogo") ->
         System.cmd(
           "./demoinfogo/demoinfogo",
           ["-gameevents", "-extrainfo", "-nofootsteps", "demoinfogo/#{file_name}.dem"],
