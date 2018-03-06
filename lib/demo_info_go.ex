@@ -40,6 +40,9 @@ defmodule DemoInfoGo do
   end
 
   defp game_events(file_name) do
+    {_, files} = File.ls()
+    IO.inspect(files)
+    IO.inspect(File.cwd())
     if File.exists?("demoinfogo/#{file_name}.dem") do
       IO.puts("Starting game events dump")
       File.touch!("results/#{file_name}.dump")
