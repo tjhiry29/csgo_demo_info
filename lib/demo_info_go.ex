@@ -75,14 +75,14 @@ defmodule DemoInfoGo do
         System.cmd(
           "./demoinfogo/demoinfogo.exe",
           ["-deathscsv", "-nowarmup", "demoinfogo/#{file_name}.dem"],
-          into: File.stream!("results/#{file_name}.csv", [], :line)
+          into: File.stream!("#{path}results/#{file_name}.csv", [], :line)
         )
 
       File.exists?("#{path}demoinfogo/demoinfogo") ->
         System.cmd(
           "./demoinfogo/demoinfogo",
           ["-deathscsv", "-nowarmup", "demoinfogo/#{file_name}.dem"],
-          into: File.stream!("results/#{file_name}.csv", [], :line)
+          into: File.stream!("#{path}results/#{file_name}.csv", [], :line)
         )
 
       true ->
@@ -98,14 +98,14 @@ defmodule DemoInfoGo do
         System.cmd(
           "./demoinfogo/demoinfogo.exe",
           ["-gameevents", "-extrainfo", "-nofootsteps", "demoinfogo/#{file_name}.dem"],
-          into: File.stream!("results/#{file_name}.dump", [], :line)
+          into: File.stream!("#{path}results/#{file_name}.dump", [], :line)
         )
 
       File.exists?("#{path}demoinfogo/demoinfogo") ->
         System.cmd(
           "./demoinfogo/demoinfogo",
           ["-gameevents", "-extrainfo", "-nofootsteps", "demoinfogo/#{file_name}.dem"],
-          into: File.stream!("results/#{file_name}.dump", [], :line)
+          into: File.stream!("#{path}results/#{file_name}.dump", [], :line)
         )
 
       true ->
