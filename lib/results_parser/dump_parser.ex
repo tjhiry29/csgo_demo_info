@@ -107,10 +107,20 @@ defmodule ResultsParser.DumpParser do
         events_list
         |> Enum.group_by(fn x -> x.fields |> Map.get("round_num") |> String.to_integer() end)
 
+      round_starts = events_list |> Enum.filter(fn e -> e.type == "round_freeze_end" end)
+
       players_map =
         events_by_round
         |> Enum.reduce(%{}, fn {round_num, events}, acc ->
-          process_round(events, acc, round_num, first_half_players, second_half_players)
+          process_round(
+            events,
+            acc,
+            round_num,
+            first_half_players,
+            second_half_players,
+            round_starts,
+            tick_rate
+          )
         end)
 
       kills_by_round =
@@ -175,7 +185,15 @@ defmodule ResultsParser.DumpParser do
     end
   end
 
-  defp process_round(events, acc, round_num, first_half_players, second_half_players) do
+  defp process_round(
+         events,
+         acc,
+         round_num,
+         first_half_players,
+         second_half_players,
+         round_starts,
+         tick_rate
+       ) do
     player_spawns = Enum.filter(events, fn e -> e.type == "player_spawn" end)
     player_spawns = Enum.uniq_by(player_spawns, fn e -> Map.get(e.fields, "userid") end)
 
@@ -208,9 +226,16 @@ defmodule ResultsParser.DumpParser do
       end
       |> Enum.sort(fn p1, p2 -> p1.id < p2.id end)
 
+    round_start =
+      round_starts
+      |> Enum.find(fn e -> GameEvent.get_round(e) == round_num end)
+
     {player_round_records, _} =
-      Enum.reduce(
-        events,
+      events
+      |> Enum.map(fn e ->
+        GameEvent.time_left_in_round(e, GameEvent.get_tick(round_start), tick_rate)
+      end)
+      |> Enum.reduce(
         {player_round_records, []},
         &process_round_game_events(&1, &2)
       )
@@ -425,11 +450,11 @@ defmodule ResultsParser.DumpParser do
             current_tick = GameEvent.get_tick(event)
             tick_difference = current_tick - start_tick
             time_elapsed = tick_difference / tick_rate
-            time_in_round = @round_time - time_elapsed
+            time_left_in_round = @round_time - time_elapsed
 
             fields =
               Map.get(event, :fields) |> Map.put("time_elapsed", time_elapsed)
-              |> Map.put("time_in_round", time_in_round)
+              |> Map.put("time_left_in_round", time_left_in_round)
 
             event = Map.put(event, :fields, fields)
 

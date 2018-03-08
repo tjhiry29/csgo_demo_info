@@ -13,6 +13,8 @@ defmodule Kill do
     :victim_position,
     :attacker_position,
     :map_name,
+    time_elapsed: 0,
+    time_left_in_round: 0,
     trade: false,
     assist: nil,
     first_of_round: false

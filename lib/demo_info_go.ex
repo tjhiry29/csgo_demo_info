@@ -6,7 +6,7 @@ defmodule DemoInfoGo do
 
   def run() do
     arg = "faze-vs-sk-m1-inferno"
-    ResultsParser.DumpParser.parse_game_events(arg)
+    ResultsParser.DumpParser.parse_game_events(arg, "")
   end
 
   # parse resulting csv

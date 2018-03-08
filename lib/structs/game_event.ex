@@ -1,4 +1,6 @@
 defmodule GameEvent do
+  @round_time 115
+
   defstruct [:type, fields: %{}]
 
   def is_game_event(%GameEvent{}) do
@@ -15,6 +17,11 @@ defmodule GameEvent do
 
   def get_round(%GameEvent{fields: %{"round_num" => round_num}}),
     do: round_num |> String.to_integer()
+
+  def get_time_elapsed(%GameEvent{fields: %{"time_elapsed" => time_elapsed}}), do: time_elapsed
+
+  def get_time_left_in_round(%GameEvent{fields: %{"time_left_in_round" => time_left_in_round}}),
+    do: time_left_in_round
 
   # Occasionally there is no weapon.
   def get_weapon(%GameEvent{} = event), do: Map.get(event.fields, "weapon")
@@ -72,19 +79,24 @@ defmodule GameEvent do
   end
 
   def get_position(%GameEvent{} = event, index) when index > 1 do
-    Map.get(event.fields, "position" <> "_#{index}")
+    event.fields
+    |> Map.get("position" <> "_#{index}")
+    |> String.split(", ")
+    |> Enum.map(&String.to_float/1)
   end
 
   def get_position(%GameEvent{} = event, _), do: get_position(event)
 
-  def get_position(%GameEvent{} = event) do
-    Map.get(event.fields, "position")
+  def get_position(%GameEvent{fields: %{"position" => position}}) do
+    position
+    |> String.split(", ")
+    |> Enum.map(&String.to_float/1)
   end
 
   def get_xyz_location(event) do
     event
     |> get_xyz()
-    |> Enum.join(", ")
+    |> Enum.map(&String.to_float/1)
   end
 
   def get_xyz(%GameEvent{fields: %{"x" => x, "y" => y, "z" => z}}) do
@@ -148,5 +160,19 @@ defmodule GameEvent do
       is_game_event(e) && e.type == "inferno_startburn" &&
         Map.get(e.fields, "molotov_throw").player_id == attacker_id && get_dmg_health(e) != 1
     end)
+  end
+
+  def time_left_in_round(%GameEvent{} = event, start_tick, tick_rate) do
+    current_tick = get_tick(event)
+    tick_difference = current_tick - start_tick
+    time_elapsed = tick_difference / tick_rate
+    time_left_in_round = @round_time - time_elapsed
+
+    fields =
+      event.fields
+      |> Map.put("time_elapsed", time_elapsed)
+      |> Map.put("time_left_in_round", time_left_in_round)
+
+    %{event | fields: fields}
   end
 end

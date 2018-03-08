@@ -1,9 +1,14 @@
 # Demoinfogo
 
 TODO:
+  - Determine what v1 is.
   - Add round breakdowns.
   - Add clutch situation statistics
+  - Add weapon statistics 
+    - Equipment at beginning of round
+    - Weapon Accuracy
   - Create tests with some fixtures.
+  - Create configuration options for easier usage with other programs
 
 ## Installation
 

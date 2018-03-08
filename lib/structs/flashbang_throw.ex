@@ -7,6 +7,8 @@ defmodule FlashbangThrow do
     :origin,
     :facing,
     :location,
+    time_elapsed: 0,
+    time_left_in_round: 0,
     player_blind_duration: %{},
     total_blind_duration: 0,
     flash_assist: false,

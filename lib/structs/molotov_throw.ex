@@ -7,6 +7,8 @@ defmodule MolotovThrow do
     :origin,
     :facing,
     :location,
+    time_elapsed: 0,
+    time_left_in_round: 0,
     detonated: false,
     expired: false,
     entityid: nil,

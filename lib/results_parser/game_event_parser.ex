@@ -370,7 +370,9 @@ defmodule GameEventParser do
       headshot: headshot,
       victim_position: victim_position,
       attacker_position: attacker_position,
-      assist: assist
+      assist: assist,
+      time_left_in_round: GameEvent.get_time_left_in_round(event),
+      time_elapsed: GameEvent.get_time_elapsed(event)
     }
   end
 
@@ -388,7 +390,9 @@ defmodule GameEventParser do
       victim_name: victim.name,
       assister_name: assister.name,
       round: round,
-      tick: tick
+      tick: tick,
+      time_left_in_round: GameEvent.get_time_left_in_round(event),
+      time_elapsed: GameEvent.get_time_elapsed(event)
     }
   end
 
@@ -415,7 +419,9 @@ defmodule GameEventParser do
           round: round,
           tick: tick,
           origin: origin,
-          facing: facing
+          facing: facing,
+          time_left_in_round: GameEvent.get_time_left_in_round(event),
+          time_elapsed: GameEvent.get_time_elapsed(event)
         }
 
       "weapon_molotov" ->
@@ -425,7 +431,9 @@ defmodule GameEventParser do
           round: round,
           tick: tick,
           origin: origin,
-          facing: facing
+          facing: facing,
+          time_left_in_round: GameEvent.get_time_left_in_round(event),
+          time_elapsed: GameEvent.get_time_elapsed(event)
         }
 
       "weapon_flashbang" ->
@@ -435,7 +443,9 @@ defmodule GameEventParser do
           round: round,
           tick: tick,
           origin: origin,
-          facing: facing
+          facing: facing,
+          time_left_in_round: GameEvent.get_time_left_in_round(event),
+          time_elapsed: GameEvent.get_time_elapsed(event)
         }
 
       "weapon_hegrenade" ->
@@ -445,7 +455,9 @@ defmodule GameEventParser do
           round: round,
           tick: tick,
           origin: origin,
-          facing: facing
+          facing: facing,
+          time_left_in_round: GameEvent.get_time_left_in_round(event),
+          time_elapsed: GameEvent.get_time_elapsed(event)
         }
 
       "weapon_smokegrenade" ->
@@ -455,7 +467,9 @@ defmodule GameEventParser do
           round: round,
           tick: tick,
           origin: origin,
-          facing: facing
+          facing: facing,
+          time_left_in_round: GameEvent.get_time_left_in_round(event),
+          time_elapsed: GameEvent.get_time_elapsed(event)
         }
 
       _ ->
