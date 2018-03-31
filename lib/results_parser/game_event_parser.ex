@@ -1,7 +1,7 @@
-defmodule GameEventParser do
+defmodule ResultsParser.GameEventParser do
   def process_player_hurt_event({player_round_records, tmp_events}, event) do
     {user, user_index, id} = find_player(event, player_round_records)
-    dmg_dealt = GameEvent.get_dmg_health(event)
+    dmg_dealt = DemoInfoGo.GameEvent.get_dmg_health(event)
 
     if user == nil do
       IO.inspect(player_round_records)
@@ -21,12 +21,15 @@ defmodule GameEventParser do
           attacker
 
         true ->
-          PlayerRoundRecord.update_attacker_damage_dealt(attacker, dmg_dealt, id)
+          DemoInfoGo.PlayerRoundRecord.update_attacker_damage_dealt(attacker, dmg_dealt, id)
       end
 
     player_round_records =
       player_round_records
-      |> PlayerRoundRecord.replace_players([user_index, attacker_index], [user, attacker])
+      |> DemoInfoGo.PlayerRoundRecord.replace_players([user_index, attacker_index], [
+        user,
+        attacker
+      ])
 
     {player_round_records, tmp_events}
   end
@@ -51,11 +54,14 @@ defmodule GameEventParser do
 
     player_round_records =
       player_round_records
-      |> PlayerRoundRecord.replace_players([user_index, attacker_index, assister_index], [
-        user,
-        attacker,
-        assister
-      ])
+      |> DemoInfoGo.PlayerRoundRecord.replace_players(
+        [user_index, attacker_index, assister_index],
+        [
+          user,
+          attacker,
+          assister
+        ]
+      )
 
     {player_round_records, tmp_events}
   end
@@ -68,7 +74,7 @@ defmodule GameEventParser do
     player = %{player | grenade_throws: [grenade_throw | player.grenade_throws]}
 
     player_round_records =
-      PlayerRoundRecord.replace_player(player_round_records, player_index, player)
+      DemoInfoGo.PlayerRoundRecord.replace_player(player_round_records, player_index, player)
 
     tmp_events = [grenade_throw | tmp_events]
     {player_round_records, tmp_events}
@@ -77,7 +83,7 @@ defmodule GameEventParser do
   def process_grenade_hit_event({player_round_records, tmp_events}, event) do
     {_, _, user_id} = find_player(event, player_round_records)
     {attacker, attacker_index, attacker_id} = find_attacker(event, player_round_records)
-    event_index = GameEvent.find_hegrenade_detonate(tmp_events, attacker_id)
+    event_index = DemoInfoGo.GameEvent.find_hegrenade_detonate(tmp_events, attacker_id)
 
     cond do
       event_index != nil ->
@@ -86,18 +92,18 @@ defmodule GameEventParser do
         hegrenade_throw =
           hegrenade_detonate.fields
           |> Map.get("hegrenade_throw")
-          |> HegrenadeThrow.update_damage_dealt(user_id, event)
+          |> DemoInfoGo.HegrenadeThrow.update_damage_dealt(user_id, event)
 
         hegrenade_detonate = %{
           hegrenade_detonate
           | fields: Map.put(hegrenade_detonate.fields, "hegrenade_throw", hegrenade_throw)
         }
 
-        attacker = PlayerRoundRecord.replace_grenade_throw(attacker, hegrenade_throw)
+        attacker = DemoInfoGo.PlayerRoundRecord.replace_grenade_throw(attacker, hegrenade_throw)
 
         player_round_records =
           player_round_records
-          |> PlayerRoundRecord.replace_player(attacker_index, attacker)
+          |> DemoInfoGo.PlayerRoundRecord.replace_player(attacker_index, attacker)
 
         tmp_events = List.replace_at(tmp_events, event_index, hegrenade_detonate)
 
@@ -111,7 +117,7 @@ defmodule GameEventParser do
   def process_inferno_hit_event({player_round_records, tmp_events}, event) do
     {_, _, user_id} = find_player(event, player_round_records)
     {attacker, attacker_index, attacker_id} = find_attacker(event, player_round_records)
-    event_index = GameEvent.find_inferno_startburn(tmp_events, attacker_id)
+    event_index = DemoInfoGo.GameEvent.find_inferno_startburn(tmp_events, attacker_id)
 
     cond do
       event_index != nil ->
@@ -120,18 +126,18 @@ defmodule GameEventParser do
         molotov_throw =
           inferno_startburn.fields
           |> Map.get("molotov_throw")
-          |> MolotovThrow.update_damage_dealt(user_id, event)
+          |> DemoInfoGo.MolotovThrow.update_damage_dealt(user_id, event)
 
         inferno_startburn = %{
           inferno_startburn
           | fields: Map.put(inferno_startburn.fields, "molotov_throw", molotov_throw)
         }
 
-        attacker = PlayerRoundRecord.replace_grenade_throw(attacker, molotov_throw)
+        attacker = DemoInfoGo.PlayerRoundRecord.replace_grenade_throw(attacker, molotov_throw)
 
         player_round_records =
           player_round_records
-          |> PlayerRoundRecord.replace_player(attacker_index, attacker)
+          |> DemoInfoGo.PlayerRoundRecord.replace_player(attacker_index, attacker)
 
         tmp_events = List.replace_at(tmp_events, event_index, inferno_startburn)
 
@@ -145,24 +151,24 @@ defmodule GameEventParser do
   def process_player_blind_event({player_round_records, tmp_events}, event) do
     {user, _, _} = find_player(event, player_round_records)
     {attacker, attacker_index, attacker_id} = find_attacker(event, player_round_records)
-    event_index = GameEvent.find_flashbang_detonate(tmp_events, attacker_id, event)
+    event_index = DemoInfoGo.GameEvent.find_flashbang_detonate(tmp_events, attacker_id, event)
 
     flashbang_detonate = Enum.at(tmp_events, event_index)
 
     flashbang_throw =
       flashbang_detonate.fields
       |> Map.get("flashbang_throw")
-      |> FlashbangThrow.update_blind_information(user, event)
+      |> DemoInfoGo.FlashbangThrow.update_blind_information(user, event)
 
     flashbang_detonate = %{
       flashbang_detonate
       | fields: Map.put(flashbang_detonate.fields, "flashbang_throw", flashbang_throw)
     }
 
-    attacker = PlayerRoundRecord.replace_grenade_throw(attacker, flashbang_throw)
+    attacker = DemoInfoGo.PlayerRoundRecord.replace_grenade_throw(attacker, flashbang_throw)
 
     player_round_records =
-      PlayerRoundRecord.replace_player(player_round_records, attacker_index, attacker)
+      DemoInfoGo.PlayerRoundRecord.replace_player(player_round_records, attacker_index, attacker)
 
     tmp_events = List.replace_at(tmp_events, event_index, flashbang_detonate)
 
@@ -175,10 +181,10 @@ defmodule GameEventParser do
     event_index =
       tmp_events
       |> Enum.find_index(fn e ->
-        HegrenadeThrow.is_hegrenade_throw(e) && !e.detonated && e.player_id == id
+        DemoInfoGo.HegrenadeThrow.is_hegrenade_throw(e) && !e.detonated && e.player_id == id
       end)
 
-    location = GameEvent.get_xyz_location(event)
+    location = DemoInfoGo.GameEvent.get_xyz_location(event)
 
     case event_index do
       nil ->
@@ -191,7 +197,7 @@ defmodule GameEventParser do
           |> grenade_detonated(location)
 
         event = %{event | fields: Map.put(event.fields, "hegrenade_throw", hegrenade_throw)}
-        tmp_events = GameEvent.update_events(tmp_events, event_index, event)
+        tmp_events = DemoInfoGo.GameEvent.update_events(tmp_events, event_index, event)
 
         {player_round_records, tmp_events}
     end
@@ -203,10 +209,10 @@ defmodule GameEventParser do
     event_index =
       tmp_events
       |> Enum.find_index(fn e ->
-        FlashbangThrow.is_flashbang_throw(e) && !e.detonated && e.player_id == id
+        DemoInfoGo.FlashbangThrow.is_flashbang_throw(e) && !e.detonated && e.player_id == id
       end)
 
-    location = GameEvent.get_xyz_location(event)
+    location = DemoInfoGo.GameEvent.get_xyz_location(event)
 
     flashbang_throw =
       tmp_events
@@ -214,7 +220,7 @@ defmodule GameEventParser do
       |> grenade_detonated(location)
 
     event = %{event | fields: Map.put(event.fields, "flashbang_throw", flashbang_throw)}
-    tmp_events = GameEvent.update_events(tmp_events, event_index, event)
+    tmp_events = DemoInfoGo.GameEvent.update_events(tmp_events, event_index, event)
 
     {player_round_records, tmp_events}
   end
@@ -225,10 +231,10 @@ defmodule GameEventParser do
     event_index =
       tmp_events
       |> Enum.find_index(fn e ->
-        SmokegrenadeThrow.is_smokegrenade_throw(e) && !e.detonated && e.player_id == id
+        DemoInfoGo.SmokegrenadeThrow.is_smokegrenade_throw(e) && !e.detonated && e.player_id == id
       end)
 
-    location = GameEvent.get_xyz_location(event)
+    location = DemoInfoGo.GameEvent.get_xyz_location(event)
 
     case event_index do
       nil ->
@@ -240,10 +246,10 @@ defmodule GameEventParser do
           |> Enum.at(event_index)
           |> grenade_detonated(location)
 
-        user = PlayerRoundRecord.replace_grenade_throw(user, smokegrenade_throw)
+        user = DemoInfoGo.PlayerRoundRecord.replace_grenade_throw(user, smokegrenade_throw)
 
         player_round_records =
-          PlayerRoundRecord.replace_player(player_round_records, user_index, user)
+          DemoInfoGo.PlayerRoundRecord.replace_player(player_round_records, user_index, user)
 
         {player_round_records, tmp_events}
     end
@@ -253,16 +259,16 @@ defmodule GameEventParser do
     event_index =
       tmp_events
       |> Enum.find_index(fn e ->
-        MolotovThrow.is_molotov_throw(e) && !e.detonated && e.entityid == nil
+        DemoInfoGo.MolotovThrow.is_molotov_throw(e) && !e.detonated && e.entityid == nil
       end)
 
-    location = GameEvent.get_xyz_location(event)
+    location = DemoInfoGo.GameEvent.get_xyz_location(event)
 
     molotov_throw =
       tmp_events
       |> Enum.at(event_index)
       |> grenade_detonated(location)
-      |> Map.put(:entityid, GameEvent.get_entityid(event))
+      |> Map.put(:entityid, DemoInfoGo.GameEvent.get_entityid(event))
 
     user_index =
       player_round_records
@@ -273,13 +279,13 @@ defmodule GameEventParser do
     user =
       player_round_records
       |> Enum.at(user_index)
-      |> PlayerRoundRecord.replace_grenade_throw(molotov_throw)
+      |> DemoInfoGo.PlayerRoundRecord.replace_grenade_throw(molotov_throw)
 
     player_round_records =
-      PlayerRoundRecord.replace_player(player_round_records, user_index, user)
+      DemoInfoGo.PlayerRoundRecord.replace_player(player_round_records, user_index, user)
 
     event = %{event | fields: Map.put(event.fields, "molotov_throw", molotov_throw)}
-    tmp_events = GameEvent.update_events(tmp_events, event_index, event)
+    tmp_events = DemoInfoGo.GameEvent.update_events(tmp_events, event_index, event)
 
     {player_round_records, tmp_events}
   end
@@ -288,10 +294,10 @@ defmodule GameEventParser do
     event_index =
       tmp_events
       |> Enum.find_index(fn e ->
-        GameEvent.is_game_event(e) && e.type == "inferno_startburn" &&
+        DemoInfoGo.GameEvent.is_game_event(e) && e.type == "inferno_startburn" &&
           Map.get(e.fields, "molotov_throw").detonated &&
           !Map.get(e.fields, "molotov_throw").expired &&
-          GameEvent.get_entityid(e) == GameEvent.get_entityid(event)
+          DemoInfoGo.GameEvent.get_entityid(e) == DemoInfoGo.GameEvent.get_entityid(event)
       end)
 
     molotov_throw =
@@ -310,13 +316,13 @@ defmodule GameEventParser do
     user =
       player_round_records
       |> Enum.at(user_index)
-      |> PlayerRoundRecord.replace_grenade_throw(molotov_throw)
+      |> DemoInfoGo.PlayerRoundRecord.replace_grenade_throw(molotov_throw)
 
     player_round_records =
-      PlayerRoundRecord.replace_player(player_round_records, user_index, user)
+      DemoInfoGo.PlayerRoundRecord.replace_player(player_round_records, user_index, user)
 
     event = %{event | fields: Map.put(event.fields, "molotov_throw", molotov_throw)}
-    tmp_events = GameEvent.update_events(tmp_events, event_index, event)
+    tmp_events = DemoInfoGo.GameEvent.update_events(tmp_events, event_index, event)
 
     {player_round_records, tmp_events}
   end
@@ -328,7 +334,7 @@ defmodule GameEventParser do
   end
 
   def find_attacker(event, player_round_records) do
-    case GameEvent.get_attacker(event) do
+    case DemoInfoGo.GameEvent.get_attacker(event) do
       "0" ->
         {nil, nil, nil}
 
@@ -338,7 +344,7 @@ defmodule GameEventParser do
   end
 
   def find_assister(event, player_round_records) do
-    case GameEvent.get_assister(event) do
+    case DemoInfoGo.GameEvent.get_assister(event) do
       "0" ->
         {nil, nil, nil}
 
@@ -348,18 +354,18 @@ defmodule GameEventParser do
   end
 
   def find_player(event, player_round_records, field \\ "userid") do
-    {_, id} = GameEvent.process_player_field(event, field)
+    {_, id} = DemoInfoGo.GameEvent.process_player_field(event, field)
     user_index = Enum.find_index(player_round_records, fn p -> p.id == id end)
     {Enum.at(player_round_records, user_index || 11), user_index, id}
   end
 
-  def create_kill(%GameEvent{type: "player_death"} = event, user, attacker, assister) do
-    victim_position = GameEvent.get_position(event)
-    attacker_position = GameEvent.get_attacker_position(event)
-    {round, tick, headshot, weapon} = GameEvent.get_kill_info(event)
+  def create_kill(%DemoInfoGo.GameEvent{type: "player_death"} = event, user, attacker, assister) do
+    victim_position = DemoInfoGo.GameEvent.get_position(event)
+    attacker_position = DemoInfoGo.GameEvent.get_attacker_position(event)
+    {round, tick, headshot, weapon} = DemoInfoGo.GameEvent.get_kill_info(event)
     assist = create_assist(event, user, assister)
 
-    %Kill{
+    %DemoInfoGo.Kill{
       attacker_name: attacker.name,
       attacker_id: attacker.id,
       victim_name: user.name,
@@ -371,8 +377,8 @@ defmodule GameEventParser do
       victim_position: victim_position,
       attacker_position: attacker_position,
       assist: assist,
-      time_left_in_round: GameEvent.get_time_left_in_round(event),
-      time_elapsed: GameEvent.get_time_elapsed(event)
+      time_left_in_round: DemoInfoGo.GameEvent.get_time_left_in_round(event),
+      time_elapsed: DemoInfoGo.GameEvent.get_time_elapsed(event)
     }
   end
 
@@ -383,16 +389,16 @@ defmodule GameEventParser do
   def create_assist(nil, _, _), do: nil
   def create_assist(_, _, nil), do: nil
 
-  def create_assist(%GameEvent{type: "player_death"} = event, victim, assister) do
-    {round, tick, _, _} = GameEvent.get_kill_info(event)
+  def create_assist(%DemoInfoGo.GameEvent{type: "player_death"} = event, victim, assister) do
+    {round, tick, _, _} = DemoInfoGo.GameEvent.get_kill_info(event)
 
-    %Assist{
+    %DemoInfoGo.Assist{
       victim_name: victim.name,
       assister_name: assister.name,
       round: round,
       tick: tick,
-      time_left_in_round: GameEvent.get_time_left_in_round(event),
-      time_elapsed: GameEvent.get_time_elapsed(event)
+      time_left_in_round: DemoInfoGo.GameEvent.get_time_left_in_round(event),
+      time_elapsed: DemoInfoGo.GameEvent.get_time_elapsed(event)
     }
   end
 
@@ -400,76 +406,83 @@ defmodule GameEventParser do
 
   def create_player_round_records(players, round_num) do
     Enum.map(players, fn player_event ->
-      {name, id} = GameEvent.process_player_field(player_event)
+      {name, id} = DemoInfoGo.GameEvent.process_player_field(player_event)
 
-      team = GameEvent.get_team(player_event)
-      teamnum = GameEvent.get_teamnum(player_event)
-      %PlayerRoundRecord{name: name, id: id, team: team, round: round_num, teamnum: teamnum}
+      team = DemoInfoGo.GameEvent.get_team(player_event)
+      teamnum = DemoInfoGo.GameEvent.get_teamnum(player_event)
+
+      %DemoInfoGo.PlayerRoundRecord{
+        name: name,
+        id: id,
+        team: team,
+        round: round_num,
+        teamnum: teamnum
+      }
     end)
   end
 
   def create_grenade_throw(event, player) do
-    {tick, round, origin, facing} = GameEvent.get_grenade_throw_info(event)
+    {tick, round, origin, facing} = DemoInfoGo.GameEvent.get_grenade_throw_info(event)
 
-    case GameEvent.get_weapon(event) do
+    case DemoInfoGo.GameEvent.get_weapon(event) do
       "weapon_incgrenade" ->
-        %MolotovThrow{
+        %DemoInfoGo.MolotovThrow{
           player_name: player.name,
           player_id: player.id,
           round: round,
           tick: tick,
           origin: origin,
           facing: facing,
-          time_left_in_round: GameEvent.get_time_left_in_round(event),
-          time_elapsed: GameEvent.get_time_elapsed(event)
+          time_left_in_round: DemoInfoGo.GameEvent.get_time_left_in_round(event),
+          time_elapsed: DemoInfoGo.GameEvent.get_time_elapsed(event)
         }
 
       "weapon_molotov" ->
-        %MolotovThrow{
+        %DemoInfoGo.MolotovThrow{
           player_name: player.name,
           player_id: player.id,
           round: round,
           tick: tick,
           origin: origin,
           facing: facing,
-          time_left_in_round: GameEvent.get_time_left_in_round(event),
-          time_elapsed: GameEvent.get_time_elapsed(event)
+          time_left_in_round: DemoInfoGo.GameEvent.get_time_left_in_round(event),
+          time_elapsed: DemoInfoGo.GameEvent.get_time_elapsed(event)
         }
 
       "weapon_flashbang" ->
-        %FlashbangThrow{
+        %DemoInfoGo.FlashbangThrow{
           player_name: player.name,
           player_id: player.id,
           round: round,
           tick: tick,
           origin: origin,
           facing: facing,
-          time_left_in_round: GameEvent.get_time_left_in_round(event),
-          time_elapsed: GameEvent.get_time_elapsed(event)
+          time_left_in_round: DemoInfoGo.GameEvent.get_time_left_in_round(event),
+          time_elapsed: DemoInfoGo.GameEvent.get_time_elapsed(event)
         }
 
       "weapon_hegrenade" ->
-        %HegrenadeThrow{
+        %DemoInfoGo.HegrenadeThrow{
           player_name: player.name,
           player_id: player.id,
           round: round,
           tick: tick,
           origin: origin,
           facing: facing,
-          time_left_in_round: GameEvent.get_time_left_in_round(event),
-          time_elapsed: GameEvent.get_time_elapsed(event)
+          time_left_in_round: DemoInfoGo.GameEvent.get_time_left_in_round(event),
+          time_elapsed: DemoInfoGo.GameEvent.get_time_elapsed(event)
         }
 
       "weapon_smokegrenade" ->
-        %SmokegrenadeThrow{
+        %DemoInfoGo.SmokegrenadeThrow{
           player_name: player.name,
           player_id: player.id,
           round: round,
           tick: tick,
           origin: origin,
           facing: facing,
-          time_left_in_round: GameEvent.get_time_left_in_round(event),
-          time_elapsed: GameEvent.get_time_elapsed(event)
+          time_left_in_round: DemoInfoGo.GameEvent.get_time_left_in_round(event),
+          time_elapsed: DemoInfoGo.GameEvent.get_time_elapsed(event)
         }
 
       _ ->

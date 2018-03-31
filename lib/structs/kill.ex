@@ -1,4 +1,4 @@
-defmodule Kill do
+defmodule DemoInfoGo.Kill do
   @trade_time_limit 5
 
   defstruct [

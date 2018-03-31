@@ -4,7 +4,7 @@ defmodule ResultsParser.CSVParser do
   This module parses the csvs dumped by the -deathscsv command.
   The data has a header containing the map name as well as the tick rate.
   Expected data arrives as such. victim(player), attacker(player), assister(player:optional) and then weapon, headshot, round and tick
-  Player fields consist of kill_participant(victim, attacker, assister), name, id, posx, posy, posz, aimx, aimy, side (T || CT)
+  DemoInfoGo.Player fields consist of kill_participant(victim, attacker, assister), name, id, posx, posy, posz, aimx, aimy, side (T || CT)
   Only the name and id are saved for now.
 
   This module first parses the data to receive all kills and players. Also maps assists to kills.
@@ -33,9 +33,9 @@ defmodule ResultsParser.CSVParser do
         |> Enum.group_by(fn k -> k.round end)
         |> Enum.flat_map(fn {_, kills} ->
           kills
-          |> Kill.find_first_kills()
+          |> DemoInfoGo.Kill.find_first_kills()
           |> Enum.map(fn k ->
-            Kill.find_trades(k, tick_rate, kills)
+            DemoInfoGo.Kill.find_trades(k, tick_rate, kills)
           end)
         end)
 
@@ -106,7 +106,7 @@ defmodule ResultsParser.CSVParser do
   defp get_player_info_from_fields(fields) do
     name = Enum.at(fields, 1)
     id = fields |> Enum.at(2) |> String.to_integer()
-    %Player{name: name, id: id}
+    %DemoInfoGo.Player{name: name, id: id}
   end
 
   defp get_player_position(fields) do
@@ -124,7 +124,7 @@ defmodule ResultsParser.CSVParser do
     tick = String.to_integer(tick)
     headshot = String.to_existing_atom(headshot)
 
-    kill = %Kill{
+    kill = %DemoInfoGo.Kill{
       attacker_name: attacker.name,
       attacker_id: attacker.id,
       victim_name: victim.name,
@@ -146,7 +146,7 @@ defmodule ResultsParser.CSVParser do
   end
 
   defp get_assist_info(kill, assister) do
-    %Assist{
+    %DemoInfoGo.Assist{
       victim_name: kill.victim_name,
       assister_name: assister.name,
       round: kill.round,

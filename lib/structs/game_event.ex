@@ -1,9 +1,9 @@
-defmodule GameEvent do
+defmodule DemoInfoGo.GameEvent do
   @round_time 115
 
   defstruct [:type, fields: %{}]
 
-  def is_game_event(%GameEvent{}) do
+  def is_game_event(%DemoInfoGo.GameEvent{}) do
     true
   end
 
@@ -11,52 +11,57 @@ defmodule GameEvent do
     false
   end
 
-  def get(%GameEvent{} = event) do
+  def get(%DemoInfoGo.GameEvent{} = event) do
     fn field -> Map.get(event.fields, field) end
   end
 
-  def get_round(%GameEvent{fields: %{"round_num" => round_num}}),
+  def get_round(%DemoInfoGo.GameEvent{fields: %{"round_num" => round_num}}),
     do: round_num |> String.to_integer()
 
-  def get_time_elapsed(%GameEvent{fields: %{"time_elapsed" => time_elapsed}}), do: time_elapsed
+  def get_time_elapsed(%DemoInfoGo.GameEvent{fields: %{"time_elapsed" => time_elapsed}}),
+    do: time_elapsed
 
-  def get_time_left_in_round(%GameEvent{fields: %{"time_left_in_round" => time_left_in_round}}),
-    do: time_left_in_round
+  def get_time_left_in_round(%DemoInfoGo.GameEvent{
+        fields: %{"time_left_in_round" => time_left_in_round}
+      }),
+      do: time_left_in_round
 
   # Occasionally there is no weapon.
-  def get_weapon(%GameEvent{} = event), do: Map.get(event.fields, "weapon")
-  def get_weapon(%GameEvent{fields: %{"weapon" => weapon}}) when is_bitstring(weapon), do: weapon
+  def get_weapon(%DemoInfoGo.GameEvent{} = event), do: Map.get(event.fields, "weapon")
 
-  def get_attacker(%GameEvent{fields: %{"attacker" => attacker}}), do: attacker
-  def get_assister(%GameEvent{fields: %{"assister" => assister}}), do: assister
-  def get_tick(%GameEvent{fields: %{"tick" => tick}}), do: tick |> String.to_integer()
+  def get_weapon(%DemoInfoGo.GameEvent{fields: %{"weapon" => weapon}}) when is_bitstring(weapon),
+    do: weapon
+
+  def get_attacker(%DemoInfoGo.GameEvent{fields: %{"attacker" => attacker}}), do: attacker
+  def get_assister(%DemoInfoGo.GameEvent{fields: %{"assister" => assister}}), do: assister
+  def get_tick(%DemoInfoGo.GameEvent{fields: %{"tick" => tick}}), do: tick |> String.to_integer()
   def get_tick(_), do: 0
 
-  def get_entityid(%GameEvent{fields: %{"entityid" => entityid}}),
+  def get_entityid(%DemoInfoGo.GameEvent{fields: %{"entityid" => entityid}}),
     do: entityid |> String.to_integer()
 
-  def get_headshot(%GameEvent{fields: %{"headshot" => headshot}}), do: headshot == "1"
-  def get_facing(%GameEvent{fields: %{"facing" => facing}}), do: facing
-  def get_team(%GameEvent{fields: %{"team" => team}}), do: team
+  def get_headshot(%DemoInfoGo.GameEvent{fields: %{"headshot" => headshot}}), do: headshot == "1"
+  def get_facing(%DemoInfoGo.GameEvent{fields: %{"facing" => facing}}), do: facing
+  def get_team(%DemoInfoGo.GameEvent{fields: %{"team" => team}}), do: team
   def get_team(_), do: nil
-  def get_teamnum(%GameEvent{fields: %{"teamnum" => teamnum}}), do: teamnum
+  def get_teamnum(%DemoInfoGo.GameEvent{fields: %{"teamnum" => teamnum}}), do: teamnum
   def get_teamnum(_), do: nil
-  def get_winner(%GameEvent{fields: %{"winner" => winner}}), do: winner
+  def get_winner(%DemoInfoGo.GameEvent{fields: %{"winner" => winner}}), do: winner
   def get_winner(_), do: nil
 
-  def get_blind_duration(%GameEvent{fields: %{"blind_duration" => blind_duration}}),
+  def get_blind_duration(%DemoInfoGo.GameEvent{fields: %{"blind_duration" => blind_duration}}),
     do: blind_duration |> String.to_float()
 
   def get_blind_duration(_), do: nil
 
-  def get_dmg_health(%GameEvent{fields: %{"dmg_health" => dmg_health}}),
+  def get_dmg_health(%DemoInfoGo.GameEvent{fields: %{"dmg_health" => dmg_health}}),
     do: dmg_health |> String.to_integer()
 
   def get_dmg_health(_) do
     0
   end
 
-  def get_kill_info(%GameEvent{} = event) do
+  def get_kill_info(%DemoInfoGo.GameEvent{} = event) do
     {
       get_round(event),
       get_tick(event),
@@ -65,7 +70,7 @@ defmodule GameEvent do
     }
   end
 
-  def get_grenade_throw_info(%GameEvent{} = event) do
+  def get_grenade_throw_info(%DemoInfoGo.GameEvent{} = event) do
     {
       get_tick(event),
       get_round(event),
@@ -74,20 +79,20 @@ defmodule GameEvent do
     }
   end
 
-  def get_attacker_position(%GameEvent{} = event) do
+  def get_attacker_position(%DemoInfoGo.GameEvent{} = event) do
     get_position(event, 2)
   end
 
-  def get_position(%GameEvent{} = event, index) when index > 1 do
+  def get_position(%DemoInfoGo.GameEvent{} = event, index) when index > 1 do
     event.fields
     |> Map.get("position" <> "_#{index}")
     |> String.split(", ")
     |> Enum.map(&String.to_float/1)
   end
 
-  def get_position(%GameEvent{} = event, _), do: get_position(event)
+  def get_position(%DemoInfoGo.GameEvent{} = event, _), do: get_position(event)
 
-  def get_position(%GameEvent{fields: %{"position" => position}}) do
+  def get_position(%DemoInfoGo.GameEvent{fields: %{"position" => position}}) do
     position
     |> String.split(", ")
     |> Enum.map(&String.to_float/1)
@@ -99,7 +104,7 @@ defmodule GameEvent do
     |> Enum.map(&String.to_float/1)
   end
 
-  def get_xyz(%GameEvent{fields: %{"x" => x, "y" => y, "z" => z}}) do
+  def get_xyz(%DemoInfoGo.GameEvent{fields: %{"x" => x, "y" => y, "z" => z}}) do
     [x, y, z]
   end
 
@@ -109,7 +114,7 @@ defmodule GameEvent do
 
   def process_player_field(event, fields \\ "userid")
 
-  def process_player_field(%GameEvent{fields: fields}, field) do
+  def process_player_field(%DemoInfoGo.GameEvent{fields: fields}, field) do
     do_process_player_field(fields, field)
   end
 
@@ -162,7 +167,7 @@ defmodule GameEvent do
     end)
   end
 
-  def time_left_in_round(%GameEvent{} = event, start_tick, tick_rate) do
+  def time_left_in_round(%DemoInfoGo.GameEvent{} = event, start_tick, tick_rate) do
     current_tick = get_tick(event)
     tick_difference = current_tick - start_tick
     time_elapsed = tick_difference / tick_rate

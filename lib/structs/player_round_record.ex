@@ -1,4 +1,4 @@
-defmodule PlayerRoundRecord do
+defmodule DemoInfoGo.PlayerRoundRecord do
   defstruct [
     :name,
     :id,

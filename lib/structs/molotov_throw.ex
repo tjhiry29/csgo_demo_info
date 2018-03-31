@@ -1,4 +1,4 @@
-defmodule MolotovThrow do
+defmodule DemoInfoGo.MolotovThrow do
   defstruct [
     :player_name,
     :player_id,
@@ -16,22 +16,22 @@ defmodule MolotovThrow do
     player_damage_dealt: %{}
   ]
 
-  def is_molotov_throw(%MolotovThrow{}), do: true
+  def is_molotov_throw(%DemoInfoGo.MolotovThrow{}), do: true
   def is_molotov_throw(_), do: false
 
-  def update_damage_dealt(%MolotovThrow{} = molotov_throw, user_id, event) do
-    dmg = GameEvent.get_dmg_health(event)
+  def update_damage_dealt(%DemoInfoGo.MolotovThrow{} = molotov_throw, user_id, event) do
+    dmg = DemoInfoGo.GameEvent.get_dmg_health(event)
 
     molotov_throw
-    |> MolotovThrow.update_player_damage_dealt(user_id, dmg)
-    |> MolotovThrow.update_total_damage_dealt(dmg)
+    |> DemoInfoGo.MolotovThrow.update_player_damage_dealt(user_id, dmg)
+    |> DemoInfoGo.MolotovThrow.update_total_damage_dealt(dmg)
   end
 
-  def update_total_damage_dealt(%MolotovThrow{} = molotov_throw, dmg) do
+  def update_total_damage_dealt(%DemoInfoGo.MolotovThrow{} = molotov_throw, dmg) do
     %{molotov_throw | total_damage_dealt: molotov_throw.total_damage_dealt + dmg}
   end
 
-  def update_player_damage_dealt(%MolotovThrow{} = molotov_throw, user_id, dmg) do
+  def update_player_damage_dealt(%DemoInfoGo.MolotovThrow{} = molotov_throw, user_id, dmg) do
     {_, map} =
       Map.get_and_update(molotov_throw.player_damage_dealt, user_id, fn val ->
         new_val =

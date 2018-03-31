@@ -47,13 +47,13 @@ defmodule ResultsParser.DumpParser do
         list
         |> Enum.filter(fn x ->
           !Enum.member?(@filter_events, x.type) &&
-            GameEvent.get_tick(x) >= GameEvent.get_tick(match_start)
+            DemoInfoGo.GameEvent.get_tick(x) >= DemoInfoGo.GameEvent.get_tick(match_start)
         end)
 
       [first_event | remainder] = events_list
 
       first_event =
-        if GameEvent.get_round(first_event) == 0 do
+        if DemoInfoGo.GameEvent.get_round(first_event) == 0 do
           fields = Map.put(first_event.fields, "round_num", "1")
           Map.put(first_event, :fields, fields)
         else
@@ -64,13 +64,13 @@ defmodule ResultsParser.DumpParser do
 
       # process player spawn events to create list of players.
       player_spawn = fn x -> x.type == "player_spawn" end
-      first_half_event = &(GameEvent.get_round(&1) == 0)
-      second_half_event = &(GameEvent.get_round(&1) == 16)
+      first_half_event = &(DemoInfoGo.GameEvent.get_round(&1) == 0)
+      second_half_event = &(DemoInfoGo.GameEvent.get_round(&1) == 16)
 
       first_half_players =
         list
         |> Enum.filter(fn e ->
-          player_spawn.(e) && first_half_event.(e) && GameEvent.get_team(e) != nil
+          player_spawn.(e) && first_half_event.(e) && DemoInfoGo.GameEvent.get_team(e) != nil
         end)
         |> Enum.reverse()
         |> Enum.take(10)
@@ -79,7 +79,8 @@ defmodule ResultsParser.DumpParser do
         if length(first_half_players) == 0 do
           list
           |> Enum.filter(fn e ->
-            player_spawn.(e) && GameEvent.get_round(e) == 2 && GameEvent.get_team(e) != nil
+            player_spawn.(e) && DemoInfoGo.GameEvent.get_round(e) == 2 &&
+              DemoInfoGo.GameEvent.get_team(e) != nil
           end)
           |> Enum.uniq_by(fn e -> Map.get(e.fields, "userid") end)
           |> Enum.take(10)
@@ -132,10 +133,10 @@ defmodule ResultsParser.DumpParser do
               player.kills
             end)
             |> Enum.sort(fn k1, k2 -> k1.tick < k2.tick end)
-            |> Kill.find_first_kills()
+            |> DemoInfoGo.Kill.find_first_kills()
 
           Enum.map(kills, fn k ->
-            %{k | map_name: map_name} |> Kill.find_trades(tick_rate, kills)
+            %{k | map_name: map_name} |> DemoInfoGo.Kill.find_trades(tick_rate, kills)
           end)
         end)
         |> Enum.group_by(fn k -> k.round end)
@@ -147,21 +148,21 @@ defmodule ResultsParser.DumpParser do
           |> Enum.map(fn p ->
             map_kills(p, Map.get(kills_by_round, round_num))
           end)
-          |> Player.was_traded(tick_rate)
+          |> DemoInfoGo.Player.was_traded(tick_rate)
         end)
         |> Enum.group_by(fn p -> p.id end)
 
       players =
         players_by_id
         |> Enum.map(fn {_, players} ->
-          Player.aggregate_round_stats(players)
+          DemoInfoGo.Player.aggregate_round_stats(players)
         end)
 
       teams =
         players
         |> Enum.group_by(fn p -> p.teamnum end)
         |> Enum.map(fn {teamnum, players} ->
-          %Team{
+          %DemoInfoGo.Team{
             teamnum: teamnum,
             players: players
           }
@@ -216,24 +217,28 @@ defmodule ResultsParser.DumpParser do
     player_round_records =
       cond do
         round_num <= 15 ->
-          GameEventParser.create_player_round_records(player_spawns, round_num)
+          ResultsParser.GameEventParser.create_player_round_records(player_spawns, round_num)
 
         round_num > 15 ->
-          GameEventParser.create_player_round_records(player_spawns, round_num)
+          ResultsParser.GameEventParser.create_player_round_records(player_spawns, round_num)
 
         round_num > 30 ->
-          GameEventParser.create_player_round_records(player_spawns, round_num)
+          ResultsParser.GameEventParser.create_player_round_records(player_spawns, round_num)
       end
       |> Enum.sort(fn p1, p2 -> p1.id < p2.id end)
 
     round_start =
       round_starts
-      |> Enum.find(fn e -> GameEvent.get_round(e) == round_num end)
+      |> Enum.find(fn e -> DemoInfoGo.GameEvent.get_round(e) == round_num end)
 
     {player_round_records, _} =
       events
       |> Enum.map(fn e ->
-        GameEvent.time_left_in_round(e, GameEvent.get_tick(round_start), tick_rate)
+        DemoInfoGo.GameEvent.time_left_in_round(
+          e,
+          DemoInfoGo.GameEvent.get_tick(round_start),
+          tick_rate
+        )
       end)
       |> Enum.reduce(
         {player_round_records, []},
@@ -246,15 +251,22 @@ defmodule ResultsParser.DumpParser do
   defp process_round_game_events(event, acc) do
     case event.type do
       "player_hurt" ->
-        {player_round_records, tmp_events} = GameEventParser.process_player_hurt_event(acc, event)
+        {player_round_records, tmp_events} =
+          ResultsParser.GameEventParser.process_player_hurt_event(acc, event)
 
         {player_round_records, tmp_events} =
-          case GameEvent.get_weapon(event) do
+          case DemoInfoGo.GameEvent.get_weapon(event) do
             "hegrenade" ->
-              GameEventParser.process_grenade_hit_event({player_round_records, tmp_events}, event)
+              ResultsParser.GameEventParser.process_grenade_hit_event(
+                {player_round_records, tmp_events},
+                event
+              )
 
             "inferno" ->
-              GameEventParser.process_inferno_hit_event({player_round_records, tmp_events}, event)
+              ResultsParser.GameEventParser.process_inferno_hit_event(
+                {player_round_records, tmp_events},
+                event
+              )
 
             _ ->
               {player_round_records, tmp_events}
@@ -263,34 +275,34 @@ defmodule ResultsParser.DumpParser do
         {player_round_records, tmp_events}
 
       "player_death" ->
-        GameEventParser.process_player_death_event(acc, event)
+        ResultsParser.GameEventParser.process_player_death_event(acc, event)
 
       "weapon_fire" ->
         cond do
-          Enum.member?(@grenades, GameEvent.get_weapon(event)) ->
-            GameEventParser.process_grenade_throw_event(acc, event)
+          Enum.member?(@grenades, DemoInfoGo.GameEvent.get_weapon(event)) ->
+            ResultsParser.GameEventParser.process_grenade_throw_event(acc, event)
 
           true ->
             acc
         end
 
       "player_blind" ->
-        GameEventParser.process_player_blind_event(acc, event)
+        ResultsParser.GameEventParser.process_player_blind_event(acc, event)
 
       "hegrenade_detonate" ->
-        GameEventParser.process_hegrenade_detonate_event(acc, event)
+        ResultsParser.GameEventParser.process_hegrenade_detonate_event(acc, event)
 
       "flashbang_detonate" ->
-        GameEventParser.process_flashbang_detonate_event(acc, event)
+        ResultsParser.GameEventParser.process_flashbang_detonate_event(acc, event)
 
       "smokegrenade_detonate" ->
-        GameEventParser.process_smokegrenade_detonate_event(acc, event)
+        ResultsParser.GameEventParser.process_smokegrenade_detonate_event(acc, event)
 
       "inferno_startburn" ->
-        GameEventParser.process_inferno_startburn_event(acc, event)
+        ResultsParser.GameEventParser.process_inferno_startburn_event(acc, event)
 
       "inferno_expire" ->
-        GameEventParser.process_inferno_expire_event(acc, event)
+        ResultsParser.GameEventParser.process_inferno_expire_event(acc, event)
 
       _ ->
         acc
@@ -333,7 +345,7 @@ defmodule ResultsParser.DumpParser do
     cond do
       String.contains?(line, "{") ->
         event_type = line |> String.split(" ") |> Enum.at(0)
-        acc = %GameEvent{type: event_type}
+        acc = %DemoInfoGo.GameEvent{type: event_type}
         {nil, acc}
 
       String.contains?(line, "}") ->
@@ -423,7 +435,7 @@ defmodule ResultsParser.DumpParser do
 
           "player_team" ->
             player_teams = [event | player_teams]
-            {_, id} = GameEvent.process_player_field(event)
+            {_, id} = DemoInfoGo.GameEvent.process_player_field(event)
             player_index = Enum.find_index(players, fn p -> p.id == id end)
             player = Enum.at(players, player_index)
 
@@ -446,8 +458,8 @@ defmodule ResultsParser.DumpParser do
 
           "bomb_planted" ->
             [round_start | _] = tmp_events
-            start_tick = GameEvent.get_tick(round_start)
-            current_tick = GameEvent.get_tick(event)
+            start_tick = DemoInfoGo.GameEvent.get_tick(round_start)
+            current_tick = DemoInfoGo.GameEvent.get_tick(event)
             tick_difference = current_tick - start_tick
             time_elapsed = tick_difference / tick_rate
             time_left_in_round = @round_time - time_elapsed
@@ -458,7 +470,7 @@ defmodule ResultsParser.DumpParser do
 
             event = Map.put(event, :fields, fields)
 
-            {_, id} = GameEvent.process_player_field(event)
+            {_, id} = DemoInfoGo.GameEvent.process_player_field(event)
             player = Enum.find(players, fn p -> p.id == id end)
             team_index = Enum.find_index(teams, fn t -> t.teamnum == player.teamnum end)
             team = Enum.at(teams, team_index)
@@ -469,8 +481,8 @@ defmodule ResultsParser.DumpParser do
 
           "bomb_defused" ->
             [bomb_planted | _] = tmp_events
-            start_tick = GameEvent.get_tick(bomb_planted)
-            current_tick = GameEvent.get_tick(event)
+            start_tick = DemoInfoGo.GameEvent.get_tick(bomb_planted)
+            current_tick = DemoInfoGo.GameEvent.get_tick(event)
             tick_difference = current_tick - start_tick
             time_elapsed = tick_difference / tick_rate
             time_left = @bomb_timer - time_elapsed
@@ -481,7 +493,7 @@ defmodule ResultsParser.DumpParser do
 
             event = Map.put(event, :fields, fields)
 
-            {_, id} = GameEvent.process_player_field(event)
+            {_, id} = DemoInfoGo.GameEvent.process_player_field(event)
             player = Enum.find(players, fn p -> p.id == id end)
             team_index = Enum.find_index(teams, fn t -> t.teamnum == player.teamnum end)
             team = Enum.at(teams, team_index)
@@ -490,7 +502,7 @@ defmodule ResultsParser.DumpParser do
             {teams, players, tmp_events, player_teams}
 
           "round_end" ->
-            winner = GameEvent.get_winner(event)
+            winner = DemoInfoGo.GameEvent.get_winner(event)
             [team1, team2] = teams
 
             {winner, loser} =

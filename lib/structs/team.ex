@@ -1,4 +1,4 @@
-defmodule Team do
+defmodule DemoInfoGo.Team do
   defstruct [
     :teamnum,
     round_wins: [],

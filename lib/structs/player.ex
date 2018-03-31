@@ -1,4 +1,4 @@
-defmodule Player do
+defmodule DemoInfoGo.Player do
   defstruct [
     :name,
     :id,
@@ -42,7 +42,7 @@ defmodule Player do
     trade_kills = Enum.filter(kills, fn k -> k.trade end)
     [player | _] = player_round_records
 
-    %Player{
+    %DemoInfoGo.Player{
       name: player.name,
       id: player.id,
       adr: adr,
