@@ -97,7 +97,7 @@ defmodule DemoInfoGo.Player do
         Enum.reduce(p.damage_dealt, 0, fn {_, d}, a -> d + a end) + acc
       end)
 
-    total_dmg / length(player_round_records)
+    Float.round(total_dmg / length(player_round_records), 2)
   end
 
   def calculate_kast(player_round_records) do
@@ -110,6 +110,6 @@ defmodule DemoInfoGo.Player do
         end
       end)
 
-    kast_score / length(player_round_records) * 100
+    Float.round(kast_score / length(player_round_records) * 100, 2)
   end
 end

@@ -57,9 +57,7 @@ defmodule DemoInfoGo.GameEvent do
   def get_dmg_health(%DemoInfoGo.GameEvent{fields: %{"dmg_health" => dmg_health}}),
     do: dmg_health |> String.to_integer()
 
-  def get_dmg_health(_) do
-    0
-  end
+  def get_dmg_health(_), do: 0
 
   def get_kill_info(%DemoInfoGo.GameEvent{} = event) do
     {
