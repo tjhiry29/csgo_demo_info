@@ -25,7 +25,8 @@ defmodule DemoInfoGo.Player do
     kast = calculate_kast(player_round_records)
 
     {kills, assists, deaths, grenade_throws, deaths_traded} =
-      Enum.reduce(player_round_records, {[], [], [], [], 0}, fn player, acc ->
+      player_round_records
+      |> Enum.reduce({[], [], [], [], 0}, fn player, acc ->
         {kills, assists, deaths, grenade_throws, deaths_traded} = acc
         kills = kills ++ player.kills
         assists = assists ++ player.assists

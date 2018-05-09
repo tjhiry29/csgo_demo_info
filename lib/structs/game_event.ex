@@ -124,7 +124,7 @@ defmodule DemoInfoGo.GameEvent do
     [head | tail] = fields |> Map.get(field) |> String.split(" ") |> Enum.reverse()
     id_field = head
 
-    name = Enum.join(tail, " ")
+    name = tail |> Enum.reverse() |> Enum.join(" ")
 
     id =
       id_field
