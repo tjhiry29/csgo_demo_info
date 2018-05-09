@@ -394,7 +394,9 @@ defmodule ResultsParser.GameEventParser do
 
     %DemoInfoGo.Assist{
       victim_name: victim.name,
+      victim_id: victim.id,
       assister_name: assister.name,
+      assister_id: assister.id,
       round: round,
       tick: tick,
       time_left_in_round: DemoInfoGo.GameEvent.get_time_left_in_round(event),

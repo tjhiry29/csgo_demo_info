@@ -384,12 +384,11 @@ defmodule ResultsParser.DumpParser do
   defp map_kills(player, kills) do
     [player_kills, player_assists, player_deaths] =
       Enum.reduce(kills, [[], [], []], fn kill, acc ->
-        k = if kill.attacker_name == player.name, do: kill
+        k = if kill.attacker_id == player.id, do: kill
 
-        assist =
-          if kill.assist != nil && kill.assist.assister_name == player.name, do: kill.assist
+        assist = if kill.assist != nil && kill.assist.assister_id == player.id, do: kill.assist
 
-        death = if kill.victim_name == player.name, do: kill
+        death = if kill.victim_id == player.id, do: kill
 
         kills =
           if k != nil do
