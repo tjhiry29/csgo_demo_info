@@ -107,6 +107,7 @@ defmodule ResultsParser.DumpParser do
       events_by_round =
         events_list
         |> Enum.group_by(fn x -> x.fields |> Map.get("round_num") |> String.to_integer() end)
+        |> Enum.sort_by(fn {roundnum, _} -> roundnum end)
 
       round_starts = events_list |> Enum.filter(fn e -> e.type == "round_freeze_end" end)
 
@@ -176,6 +177,7 @@ defmodule ResultsParser.DumpParser do
       |> Enum.group_by(fn p -> p.teamnum end)
       |> Enum.map(fn {teamnum, players} ->
         %DemoInfoGo.Team{
+          id: String.to_integer(teamnum),
           teamnum: teamnum,
           players: players
         }
@@ -202,9 +204,6 @@ defmodule ResultsParser.DumpParser do
 
         team1.rounds_won == team2.rounds_won ->
           [%{team1 | won: false, tie: true}, %{team2 | won: false, tie: true}]
-
-        true ->
-          [team1 | team2]
       end
 
     teams =
