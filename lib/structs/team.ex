@@ -1,6 +1,8 @@
 defmodule DemoInfoGo.Team do
   defstruct [
     :teamnum,
+    :won,
+    tie: false,
     round_wins: [],
     players: [],
     round_losses: [],

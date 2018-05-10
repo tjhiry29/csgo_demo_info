@@ -124,57 +124,7 @@ defmodule ResultsParser.DumpParser do
           )
         end)
 
-      kills_by_round =
-        players_map
-        |> Enum.flat_map(fn {_, players} ->
-          kills =
-            players
-            |> Enum.flat_map(fn player ->
-              player.kills
-            end)
-            |> Enum.sort(fn k1, k2 -> k1.tick < k2.tick end)
-            |> DemoInfoGo.Kill.find_first_kills()
-
-          Enum.map(kills, fn k ->
-            %{k | map_name: map_name} |> DemoInfoGo.Kill.find_trades(tick_rate, kills)
-          end)
-        end)
-        |> Enum.group_by(fn k -> k.round end)
-
-      players_by_id =
-        players_map
-        |> Enum.flat_map(fn {round_num, players} ->
-          players
-          |> Enum.map(fn p ->
-            map_kills(p, Map.get(kills_by_round, round_num))
-          end)
-          |> DemoInfoGo.Player.was_traded(tick_rate)
-        end)
-        |> Enum.group_by(fn p -> p.id end)
-
-      players =
-        players_by_id
-        |> Enum.map(fn {_, players} ->
-          DemoInfoGo.Player.aggregate_round_stats(players)
-        end)
-
-      teams =
-        players
-        |> Enum.group_by(fn p -> p.teamnum end)
-        |> Enum.map(fn {teamnum, players} ->
-          %DemoInfoGo.Team{
-            teamnum: teamnum,
-            players: players
-          }
-        end)
-        |> Enum.filter(fn team -> team.teamnum == "2" || team.teamnum == "3" end)
-
-      {teams, _} =
-        events_by_round
-        |> Enum.reduce({teams, players}, fn {_, events}, acc ->
-          {teams, players} = acc
-          process_round_for_teams(events, teams, players, tick_rate)
-        end)
+      teams = post_process(tick_rate, players_map, map_name, events_by_round)
 
       IO.inspect(player_infos)
       IO.inspect(teams)
@@ -184,6 +134,98 @@ defmodule ResultsParser.DumpParser do
       IO.puts("No such file results/#{file_name}.dump, please check the directory
                 or ensure the demo dump goes through as expected")
     end
+  end
+
+  defp post_process(tick_rate, players_map, map_name, events_by_round) do
+    kills_by_round =
+      players_map
+      |> Enum.flat_map(fn {_, players} ->
+        kills =
+          players
+          |> Enum.flat_map(fn player ->
+            player.kills
+          end)
+          |> Enum.sort(fn k1, k2 -> k1.tick < k2.tick end)
+          |> DemoInfoGo.Kill.find_first_kills()
+
+        Enum.map(kills, fn k ->
+          %{k | map_name: map_name} |> DemoInfoGo.Kill.find_trades(tick_rate, kills)
+        end)
+      end)
+      |> Enum.group_by(fn k -> k.round end)
+
+    players_by_id =
+      players_map
+      |> Enum.flat_map(fn {round_num, players} ->
+        players
+        |> Enum.map(fn p ->
+          map_kills(p, Map.get(kills_by_round, round_num))
+        end)
+        |> DemoInfoGo.Player.was_traded(tick_rate)
+      end)
+      |> Enum.group_by(fn p -> p.id end)
+
+    players =
+      players_by_id
+      |> Enum.map(fn {_, players} ->
+        DemoInfoGo.Player.aggregate_round_stats(players)
+      end)
+
+    teams =
+      players
+      |> Enum.group_by(fn p -> p.teamnum end)
+      |> Enum.map(fn {teamnum, players} ->
+        %DemoInfoGo.Team{
+          teamnum: teamnum,
+          players: players
+        }
+      end)
+      |> Enum.filter(fn team -> team.teamnum == "2" || team.teamnum == "3" end)
+
+    {teams, _} =
+      events_by_round
+      |> Enum.reduce({teams, players}, fn {_, events}, acc ->
+        {teams, players} = acc
+        process_round_for_teams(events, teams, players, tick_rate)
+      end)
+
+    team1 = Enum.at(teams, 0)
+    team2 = Enum.at(teams, 1)
+
+    teams =
+      cond do
+        team1.rounds_won > team2.rounds_won ->
+          [%{team1 | won: true}, %{team2 | won: false}]
+
+        team2.rounds_won > team1.rounds_won ->
+          [%{team1 | won: false}, %{team2 | won: true}]
+
+        team1.rounds_won == team2.rounds_won ->
+          [%{team1 | won: false, tie: true}, %{team2 | won: false, tie: true}]
+
+        true ->
+          [team1 | team2]
+      end
+
+    teams =
+      teams
+      |> Enum.map(fn team ->
+        new_players =
+          team.players
+          |> Enum.map(fn player ->
+            %{
+              player
+              | won: team.won,
+                tie: team.tie,
+                rounds_won: team.rounds_won,
+                rounds_lost: team.rounds_lost
+            }
+          end)
+
+        %{team | players: new_players}
+      end)
+
+    teams
   end
 
   defp process_round(
